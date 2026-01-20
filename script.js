@@ -512,6 +512,12 @@ function bindControls() {
   bindPair("gridThicknessRange", "gridThicknessNumber", (value) => {
     settings.gridThickness = Math.max(0.5, value);
   });
+  bindPair("glowBlurRange", "glowBlurNumber", (value) => {
+    glowConfig.blur = Math.max(0, value);
+  });
+  bindPair("glowAlphaRange", "glowAlphaNumber", (value) => {
+    glowConfig.alpha = Math.max(0, Math.min(1, value));
+  });
   bindPair("entropyMinRange", "entropyMinNumber", (value) => {
     settings.entropyMin = Math.max(0, value);
   });
