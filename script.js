@@ -397,6 +397,16 @@ function drawGrid() {
   ctx.stroke();
 }
 
+function getCellColor(age) {
+  if (age >= 10) {
+    return settings.alive10Color;
+  }
+  if (age >= 2) {
+    return settings.alive2Color;
+  }
+  return settings.alive1Color;
+}
+
 function drawCells() {
   const offsetX = settings.margin;
   const offsetY = settings.margin;
@@ -407,13 +417,7 @@ function drawCells() {
       const idx = rowOffset + x;
       if (cells[idx] !== 1) continue;
       const age = ages[idx];
-      if (age >= 10) {
-        ctx.fillStyle = settings.alive10Color;
-      } else if (age >= 2) {
-        ctx.fillStyle = settings.alive2Color;
-      } else {
-        ctx.fillStyle = settings.alive1Color;
-      }
+      ctx.fillStyle = getCellColor(age);
       ctx.fillRect(
         offsetX + x * settings.cellSize,
         offsetY + y * settings.cellSize,
@@ -427,7 +431,8 @@ function drawCells() {
 function drawGlowOverlay() {
   glowCtx.clearRect(0, 0, glowCanvas.width, glowCanvas.height);
   glowCtx.globalCompositeOperation = "source-over";
-  glowCtx.fillStyle = "rgba(255,255,255,0.0)";
+  glowCtx.save();
+  glowCtx.globalAlpha = 0.9;
 
   const offsetX = settings.margin;
   const offsetY = settings.margin;
@@ -436,7 +441,8 @@ function drawGlowOverlay() {
     for (let x = 0; x < settings.cols; x += 1) {
       const idx = rowOffset + x;
       if (cells[idx] !== 1) continue;
-      glowCtx.fillStyle = "rgba(255,255,255,0.9)";
+      const age = ages[idx];
+      glowCtx.fillStyle = getCellColor(age);
       glowCtx.fillRect(
         offsetX + x * settings.cellSize,
         offsetY + y * settings.cellSize,
@@ -445,6 +451,7 @@ function drawGlowOverlay() {
       );
     }
   }
+  glowCtx.restore();
 
   ctx.save();
   ctx.globalCompositeOperation = "screen";
