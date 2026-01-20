@@ -9,21 +9,21 @@ const statusEntropySmooth = document.getElementById("statusEntropySmooth");
 const statusEntropyStreak = document.getElementById("statusEntropyStreak");
 
 const settings = {
-  cols: 120,
-  rows: 90,
-  cellSize: 6,
+  cols: 248,
+  rows: 136,
+  cellSize: 5,
   speed: 18,
-  margin: 24,
+  margin: 20,
   gridThickness: 1,
   bgColor: "#000000",
   gridColor: "#2b2b2b",
   alive1Color: "#ff3b3b",
   alive2Color: "#16c172",
   alive10Color: "#2f7cff",
-  entropyMin: 0.22,
-  entropyWindow: 45,
-  entropyFrames: 40,
-  injections: 2,
+  entropyMin: 0.59,
+  entropyWindow: 106,
+  entropyFrames: 63,
+  injections: 1,
 };
 
 let cells = new Uint8Array(settings.cols * settings.rows);
