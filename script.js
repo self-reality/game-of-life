@@ -20,7 +20,7 @@ const settings = {
   alive1Color: "#ff3b3b",
   alive2Color: "#16c172",
   alive10Color: "#2f7cff",
-  entropyMin: 0.59,
+  entropyMin: 0.4,
   entropyWindow: 106,
   entropyFrames: 63,
   injections: 1,
@@ -39,9 +39,9 @@ let lastTime = 0;
 let accumulator = 0;
 
 const glowConfig = {
-  blur: 3,
+  blur: 4,
   alpha: 1,
-  blendMode: "lighter",
+  blendMode: "lighten",
 };
 
 const patterns = {
