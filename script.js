@@ -22,12 +22,14 @@ const settings = {
   corridorMinLength: 40,
   corridorAttempts: 24,
   corridorEdgeAttempts: 8,
+  initialAliveProbability: 0.25,
 };
 
-let cells = new Uint8Array(settings.cols * settings.rows);
-let nextCells = new Uint8Array(settings.cols * settings.rows);
-let ages = new Uint16Array(settings.cols * settings.rows);
-let nextAges = new Uint16Array(settings.cols * settings.rows);
+let simulation = SimulationCore.createSimulationState(settings, Math.random);
+let cells = simulation.cells;
+let nextCells = simulation.nextCells;
+let ages = simulation.ages;
+let nextAges = simulation.nextAges;
 
 let lastTime = 0;
 let accumulator = 0;
@@ -134,19 +136,16 @@ function resizeCanvases() {
 }
 
 function resetGrid() {
-  const size = settings.cols * settings.rows;
-  cells = new Uint8Array(size);
-  nextCells = new Uint8Array(size);
-  ages = new Uint16Array(size);
-  nextAges = new Uint16Array(size);
+  SimulationCore.resetSimulation(simulation, settings, Math.random);
+  syncSimulationBuffers();
+}
 
-  for (let i = 0; i < size; i += 1) {
-    const alive = Math.random() < 0.25 ? 1 : 0;
-    cells[i] = alive;
-    ages[i] = alive ? 1 : 0;
-  }
-
-  cycleCount = 0;
+function syncSimulationBuffers() {
+  cells = simulation.cells;
+  nextCells = simulation.nextCells;
+  ages = simulation.ages;
+  nextAges = simulation.nextAges;
+  cycleCount = simulation.cycleCount;
 }
 
 function swapBuffers() {
@@ -463,43 +462,13 @@ function randomBetween(min, max) {
 }
 
 function stepSimulation() {
-  let aliveCount = 0;
-  for (let y = 0; y < settings.rows; y += 1) {
-    const rowOffset = y * settings.cols;
-    for (let x = 0; x < settings.cols; x += 1) {
-      let neighbors = 0;
-      for (let dy = -1; dy <= 1; dy += 1) {
-        const yy = y + dy;
-        if (yy < 0 || yy >= settings.rows) continue;
-        const neighborRow = yy * settings.cols;
-        for (let dx = -1; dx <= 1; dx += 1) {
-          if (dx === 0 && dy === 0) continue;
-          const xx = x + dx;
-          if (xx < 0 || xx >= settings.cols) continue;
-          neighbors += cells[neighborRow + xx];
-        }
-      }
-
-      const idx = rowOffset + x;
-      const alive = cells[idx] === 1;
-      const nextAlive = alive ? neighbors === 2 || neighbors === 3 : neighbors === 3;
-      nextCells[idx] = nextAlive ? 1 : 0;
-      if (nextAlive) {
-        nextAges[idx] = alive ? ages[idx] + 1 : 1;
-        aliveCount += 1;
-      } else {
-        nextAges[idx] = 0;
-      }
-    }
-  }
-
-  swapBuffers();
-
-  const total = settings.cols * settings.rows;
-  const p = total === 0 ? 0 : aliveCount / total;
-  updateStatus(p);
-  cycleCount += 1;
-  injectIfNeeded();
+  const { density } = SimulationCore.stepSimulation(
+    simulation,
+    settings,
+    Math.random
+  );
+  syncSimulationBuffers();
+  updateStatus(density);
 }
 
 function drawBackground() {
@@ -668,7 +637,7 @@ function bindControls() {
   });
   bindPair("corridorMaxStepsRange", "corridorMaxStepsNumber", (value) => {
     settings.corridorMaxSteps = Math.max(1, value);
-    corridorCache.clear();
+    simulation.corridorCache.clear();
   });
   bindPair("corridorMinLengthRange", "corridorMinLengthNumber", (value) => {
     settings.corridorMinLength = Math.max(1, value);
