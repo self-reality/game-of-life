@@ -17,6 +17,17 @@ node precompute.js --config render_config.json --out output/simulation.bin
 The precompute step verifies that duration and frame timing align with
 `durationHours` and `fps`.
 
+## Precomputed render (video)
+
+Render a video from the precomputed export (no glow/blending):
+
+```
+node render_precomputed.js --config render_config.json --input output/simulation.bin
+```
+
+The renderer writes video chunks and resumes from `outputPath.progress.json`.
+Stop with `Ctrl+C` and rerun to continue from the last completed chunk.
+
 ### Export format
 
 The export file is a binary stream:
