@@ -39,8 +39,9 @@ let lastTime = 0;
 let accumulator = 0;
 
 const glowConfig = {
-  blur: 8,
-  alpha: 0.35,
+  blur: 3,
+  alpha: 1,
+  blendMode: "lighter",
 };
 
 const patterns = {
@@ -119,6 +120,11 @@ function bindPair(rangeId, numberId, onChange) {
 function bindColor(id, onChange) {
   const input = document.getElementById(id);
   input.addEventListener("input", () => onChange(input.value));
+}
+
+function bindSelect(id, onChange) {
+  const select = document.getElementById(id);
+  select.addEventListener("change", () => onChange(select.value));
 }
 
 function resizeCanvases() {
@@ -454,7 +460,7 @@ function drawGlowOverlay() {
   glowCtx.restore();
 
   ctx.save();
-  ctx.globalCompositeOperation = "screen";
+  ctx.globalCompositeOperation = glowConfig.blendMode;
   ctx.globalAlpha = glowConfig.alpha;
   ctx.filter = `blur(${glowConfig.blur}px)`;
   ctx.drawImage(glowCanvas, 0, 0);
@@ -524,6 +530,9 @@ function bindControls() {
   });
   bindPair("glowAlphaRange", "glowAlphaNumber", (value) => {
     glowConfig.alpha = Math.max(0, Math.min(1, value));
+  });
+  bindSelect("glowBlendMode", (value) => {
+    glowConfig.blendMode = value;
   });
   bindPair("entropyMinRange", "entropyMinNumber", (value) => {
     settings.entropyMin = Math.max(0, value);
