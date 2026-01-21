@@ -1,5 +1,7 @@
 # Game of Life
 
+node render_precomputed.js --config render_config.json --input '/Volumes/Smartbuy P5/Media Production/Production Videos/Long/simulation.bin'
+
 ## Motivation
 
 The simulation can be precomputed so later renders can process cycles in chunks,

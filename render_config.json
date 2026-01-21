@@ -3,7 +3,7 @@
   "fps": 30,
   "width": 3840,
   "height": 2160,
-  "outputPath": "output/game-of-life.mp4",
+  "outputPath": "/Volumes/Smartbuy P5/Media Production/Production Videos/Long/game-of-life.mp4",
   "seed": 1337,
   "settings": {
     "cols": 248,

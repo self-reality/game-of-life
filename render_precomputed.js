@@ -255,6 +255,14 @@ function getChunkPath(chunkDir, index) {
   return path.join(chunkDir, name);
 }
 
+function getSuperchunkPath(outputPath, index) {
+  const dir = path.dirname(outputPath);
+  const ext = path.extname(outputPath) || ".mp4";
+  const base = path.basename(outputPath, ext);
+  const name = `${base}.superchunk_${String(index).padStart(6, "0")}${ext}`;
+  return path.join(dir, name);
+}
+
 async function writeFrame(stream, frame) {
   if (stream.write(frame)) return;
   await new Promise((resolve) => stream.once("drain", resolve));
@@ -271,12 +279,11 @@ async function finalizeStream(process) {
   });
 }
 
-async function concatChunks(chunkDir, chunkCount, outputPath) {
+async function concatFiles(chunkDir, filePaths, outputPath) {
   const listPath = path.join(chunkDir, "concat.txt");
   const lines = [];
-  for (let i = 0; i < chunkCount; i += 1) {
-    const chunkPath = getChunkPath(chunkDir, i);
-    lines.push(`file '${chunkPath.replace(/'/g, "'\\''")}'`);
+  for (const filePath of filePaths) {
+    lines.push(`file '${filePath.replace(/'/g, "'\\''")}'`);
   }
   fs.writeFileSync(listPath, lines.join("\n"));
 
@@ -330,6 +337,7 @@ async function run() {
   const targetWidth = Number(config.width) || width;
   const targetHeight = Number(config.height) || height;
   const totalFrames = Math.floor(durationHours * 3600 * fps);
+  const framesPerSuperchunk = Math.max(1, Math.round(fps * 60 * 5));
   const stepTime = 1 / settings.speed;
   const delta = 1 / fps;
 
@@ -351,12 +359,32 @@ async function run() {
       accumulator: 0,
       chunkIndex: 0,
       framesPerChunk: args.framesPerChunk,
+      framesPerSuperchunk,
+      superchunkIndex: 0,
+      framesIntoSuperchunk: 0,
+      superchunkChunkStart: 0,
       complete: false,
     };
+  } else {
+    if (!Number.isFinite(progress.framesPerChunk)) {
+      progress.framesPerChunk = args.framesPerChunk;
+    }
+    if (!Number.isFinite(progress.framesPerSuperchunk)) {
+      progress.framesPerSuperchunk = framesPerSuperchunk;
+    }
+    if (!Number.isFinite(progress.superchunkIndex)) {
+      progress.superchunkIndex = 0;
+    }
+    if (!Number.isFinite(progress.framesIntoSuperchunk)) {
+      progress.framesIntoSuperchunk = 0;
+    }
+    if (!Number.isFinite(progress.superchunkChunkStart)) {
+      progress.superchunkChunkStart = 0;
+    }
   }
 
-  if (progress.complete && fs.existsSync(outputPath)) {
-    console.log(`Render already complete at ${outputPath}`);
+  if (progress.complete) {
+    console.log("Render already complete.");
     fs.closeSync(fd);
     return;
   }
@@ -372,7 +400,17 @@ async function run() {
   };
   const baseFrame = buildBaseFrame(settings);
 
-  let { frameIndex, cycleCount, accumulator, chunkIndex } = progress;
+  let {
+    frameIndex,
+    cycleCount,
+    accumulator,
+    chunkIndex,
+    superchunkIndex,
+    framesIntoSuperchunk,
+    superchunkChunkStart,
+  } = progress;
+  const framesPerChunk = progress.framesPerChunk;
+  const superchunkTarget = progress.framesPerSuperchunk;
   let currentSnapshot = null;
   let currentSnapshotCycle = -1;
   const ensureSnapshot = () => {
@@ -393,54 +431,116 @@ async function run() {
   });
 
   while (frameIndex < totalFrames) {
-    const chunkFrames = Math.min(args.framesPerChunk, totalFrames - frameIndex);
-    const chunkPath = getChunkPath(chunkDir, chunkIndex);
-
-    if (fs.existsSync(chunkPath)) {
-      fs.unlinkSync(chunkPath);
+    if (framesIntoSuperchunk === 0) {
+      superchunkChunkStart = chunkIndex;
     }
+    const superchunkPath = getSuperchunkPath(outputPath, superchunkIndex);
+    console.log(
+      `Rendering superchunk ${superchunkIndex} (target ${superchunkTarget} frames)...`
+    );
 
-    console.log(`Rendering chunk ${chunkIndex} (${chunkFrames} frames)...`);
-    const ffmpeg = openFfmpegStream({
-      width,
-      height,
-      fps,
-      outputPath: chunkPath,
-      targetWidth,
-      targetHeight,
-    });
+    while (frameIndex < totalFrames && framesIntoSuperchunk < superchunkTarget) {
+      const chunkFrames = Math.min(
+        framesPerChunk,
+        superchunkTarget - framesIntoSuperchunk,
+        totalFrames - frameIndex
+      );
+      const chunkPath = getChunkPath(chunkDir, chunkIndex);
 
-    let framesRendered = 0;
-    try {
-      for (; framesRendered < chunkFrames; framesRendered += 1) {
-        accumulator += delta;
-        while (accumulator >= stepTime) {
-          cycleCount += 1;
-          accumulator -= stepTime;
-        }
-
-        if (cycleCount > header.totalCycles) {
-          throw new Error("Cycle count exceeded precomputed total cycles.");
-        }
-
-        ensureSnapshot();
-
-        const frame = Buffer.from(baseFrame);
-        renderSnapshot({
-          snapshot: currentSnapshot,
-          frame,
-          width,
-          settings,
-          colors,
-        });
-        await writeFrame(ffmpeg.stdin, frame);
+      if (fs.existsSync(chunkPath)) {
+        fs.unlinkSync(chunkPath);
       }
-    } finally {
-      await finalizeStream(ffmpeg);
+
+      console.log(`Rendering chunk ${chunkIndex} (${chunkFrames} frames)...`);
+      const ffmpeg = openFfmpegStream({
+        width,
+        height,
+        fps,
+        outputPath: chunkPath,
+        targetWidth,
+        targetHeight,
+      });
+
+      let framesRendered = 0;
+      try {
+        for (; framesRendered < chunkFrames; framesRendered += 1) {
+          accumulator += delta;
+          while (accumulator >= stepTime) {
+            cycleCount += 1;
+            accumulator -= stepTime;
+          }
+
+          if (cycleCount > header.totalCycles) {
+            throw new Error("Cycle count exceeded precomputed total cycles.");
+          }
+
+          ensureSnapshot();
+
+          const frame = Buffer.from(baseFrame);
+          renderSnapshot({
+            snapshot: currentSnapshot,
+            frame,
+            width,
+            settings,
+            colors,
+          });
+          await writeFrame(ffmpeg.stdin, frame);
+        }
+      } finally {
+        await finalizeStream(ffmpeg);
+      }
+
+      frameIndex += framesRendered;
+      framesIntoSuperchunk += framesRendered;
+      chunkIndex += 1;
+
+      saveProgress(progressPath, {
+        ...progress,
+        frameIndex,
+        cycleCount,
+        accumulator,
+        chunkIndex,
+        superchunkIndex,
+        framesIntoSuperchunk,
+        superchunkChunkStart,
+        complete: frameIndex >= totalFrames,
+      });
+
+      if (stopRequested) {
+        console.log("Stop requested. Progress saved.");
+        break;
+      }
     }
 
-    frameIndex += framesRendered;
-    chunkIndex += 1;
+    if (stopRequested) {
+      break;
+    }
+
+    if (framesIntoSuperchunk > 0) {
+      const chunkFiles = [];
+      for (let i = superchunkChunkStart; i < chunkIndex; i += 1) {
+        chunkFiles.push(getChunkPath(chunkDir, i));
+      }
+
+      if (chunkFiles.length > 0) {
+        if (fs.existsSync(superchunkPath)) {
+          fs.unlinkSync(superchunkPath);
+        }
+        console.log(
+          `Concatenating superchunk ${superchunkIndex} (${framesIntoSuperchunk} frames)...`
+        );
+        await concatFiles(chunkDir, chunkFiles, superchunkPath);
+        for (const filePath of chunkFiles) {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        }
+      }
+    }
+
+    framesIntoSuperchunk = 0;
+    superchunkIndex += 1;
+    superchunkChunkStart = chunkIndex;
 
     saveProgress(progressPath, {
       ...progress,
@@ -448,27 +548,15 @@ async function run() {
       cycleCount,
       accumulator,
       chunkIndex,
+      superchunkIndex,
+      framesIntoSuperchunk,
+      superchunkChunkStart,
       complete: frameIndex >= totalFrames,
     });
-
-    if (stopRequested) {
-      console.log("Stop requested. Progress saved.");
-      break;
-    }
   }
 
   if (frameIndex >= totalFrames) {
-    console.log("Concatenating chunks...");
-    await concatChunks(chunkDir, chunkIndex, outputPath);
-    saveProgress(progressPath, {
-      ...progress,
-      frameIndex,
-      cycleCount,
-      accumulator,
-      chunkIndex,
-      complete: true,
-    });
-    console.log(`Render complete: ${outputPath}`);
+    console.log("Render complete (superchunks).");
   }
 
   fs.closeSync(fd);

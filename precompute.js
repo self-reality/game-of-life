@@ -4,7 +4,7 @@ const path = require("path");
 const { createSimulationState, stepSimulation } = require("./simulation_core");
 
 function parseArgs(argv) {
-  const args = { config: "render_config.json", out: "output/simulation.bin" };
+  const args = { config: "render_config.json", out: null };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--config" && argv[i + 1]) {
@@ -90,8 +90,13 @@ function finalizeStream(stream) {
 async function run() {
   const args = parseArgs(process.argv.slice(2));
   const configPath = path.resolve(args.config);
-  const outputPath = path.resolve(args.out);
   const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  const outputDir = config.outputPath
+    ? path.dirname(config.outputPath)
+    : "output";
+  const outputPath = path.resolve(
+    args.out || path.join(outputDir, "simulation.bin")
+  );
 
   const fps = Number(config.fps);
   const durationHours = Number(config.durationHours);
