@@ -4,10 +4,6 @@ const glowCanvas = document.createElement("canvas");
 const glowCtx = glowCanvas.getContext("2d");
 
 const statusDensity = document.getElementById("statusDensity");
-const statusEntropy = document.getElementById("statusEntropy");
-const statusEntropySmooth = document.getElementById("statusEntropySmooth");
-const statusEntropyStreak = document.getElementById("statusEntropyStreak");
-
 const settings = {
   cols: 248,
   rows: 136,
@@ -20,11 +16,7 @@ const settings = {
   alive1Color: "#ff3b3b",
   alive2Color: "#16c172",
   alive10Color: "#2f7cff",
-  entropyMin: 0.4,
-  entropyWindow: 106,
-  entropyFrames: 63,
-  injections: 1,
-  keepAliveMode: "corridor",
+  injections: 2,
   injectionPeriod: 80,
   corridorMaxSteps: 120,
   corridorMinLength: 40,
@@ -36,10 +28,6 @@ let cells = new Uint8Array(settings.cols * settings.rows);
 let nextCells = new Uint8Array(settings.cols * settings.rows);
 let ages = new Uint16Array(settings.cols * settings.rows);
 let nextAges = new Uint16Array(settings.cols * settings.rows);
-
-let entropyHistory = [];
-let entropySmooth = 0;
-let entropyStreak = 0;
 
 let lastTime = 0;
 let accumulator = 0;
@@ -104,8 +92,6 @@ const patterns = {
   ],
 };
 
-const directions = ["right", "left", "down", "up"];
-
 function bindPair(rangeId, numberId, onChange) {
   const range = document.getElementById(rangeId);
   const number = document.getElementById(numberId);
@@ -160,39 +146,12 @@ function resetGrid() {
     ages[i] = alive ? 1 : 0;
   }
 
-  entropyHistory = [];
-  entropySmooth = 0;
-  entropyStreak = 0;
   cycleCount = 0;
 }
 
 function swapBuffers() {
   [cells, nextCells] = [nextCells, cells];
   [ages, nextAges] = [nextAges, ages];
-}
-
-function computeEntropy(aliveCount) {
-  const total = settings.cols * settings.rows;
-  const p = total === 0 ? 0 : aliveCount / total;
-  if (p <= 0 || p >= 1) {
-    return { p, h: 0 };
-  }
-  const h = -p * Math.log(p) - (1 - p) * Math.log(1 - p);
-  return { p, h };
-}
-
-function updateEntropy(h) {
-  entropyHistory.push(h);
-  if (entropyHistory.length > settings.entropyWindow) {
-    entropyHistory.shift();
-  }
-  const sum = entropyHistory.reduce((acc, value) => acc + value, 0);
-  entropySmooth = entropyHistory.length > 0 ? sum / entropyHistory.length : 0;
-  if (entropySmooth < settings.entropyMin) {
-    entropyStreak += 1;
-  } else {
-    entropyStreak = 0;
-  }
 }
 
 function rotatePattern(pattern, times) {
@@ -221,30 +180,6 @@ function getBounds(pattern) {
     if (y > maxY) maxY = y;
   });
   return { minX, maxX, minY, maxY };
-}
-
-function getPatternForEntropy(h) {
-  const maxEntropy = Math.log(2);
-  const ratio = maxEntropy === 0 ? 0 : h / maxEntropy;
-  if (ratio < 0.18) return "hwss";
-  if (ratio < 0.28) return "mwss";
-  if (ratio < 0.4) return "lwss";
-  return "glider";
-}
-
-function getRotationForDirection(direction) {
-  switch (direction) {
-    case "right":
-      return 0;
-    case "down":
-      return 1;
-    case "left":
-      return 2;
-    case "up":
-      return 3;
-    default:
-      return 0;
-  }
 }
 
 function pickShipPatternName() {
@@ -490,28 +425,6 @@ function findBestCorridorPlacement(corridor) {
   return null;
 }
 
-function isPlacementValid(pattern, posX, posY) {
-  const bounds = getBounds(pattern);
-  const expanded = {
-    minX: bounds.minX - 1,
-    maxX: bounds.maxX + 1,
-    minY: bounds.minY - 1,
-    maxY: bounds.maxY + 1,
-  };
-
-  for (let y = expanded.minY; y <= expanded.maxY; y += 1) {
-    const yy = posY + y;
-    if (yy < 0 || yy >= settings.rows) return false;
-    for (let x = expanded.minX; x <= expanded.maxX; x += 1) {
-      const xx = posX + x;
-      if (xx < 0 || xx >= settings.cols) return false;
-      const idx = yy * settings.cols + xx;
-      if (cells[idx] === 1) return false;
-    }
-  }
-  return true;
-}
-
 function placePattern(pattern, posX, posY) {
   pattern.forEach(([x, y]) => {
     const xx = posX + x;
@@ -521,65 +434,6 @@ function placePattern(pattern, posX, posY) {
     cells[idx] = 1;
     ages[idx] = 1;
   });
-}
-
-function tryInjectPattern(patternName) {
-  const direction = directions[Math.floor(Math.random() * directions.length)];
-  const basePattern = patterns[patternName];
-  const rotated = rotatePattern(basePattern, getRotationForDirection(direction));
-  const bounds = getBounds(rotated);
-  const expanded = {
-    minX: bounds.minX - 1,
-    maxX: bounds.maxX + 1,
-    minY: bounds.minY - 1,
-    maxY: bounds.maxY + 1,
-  };
-
-  const minX = -expanded.minX;
-  const maxX = settings.cols - 1 - expanded.maxX;
-  const minY = -expanded.minY;
-  const maxY = settings.rows - 1 - expanded.maxY;
-
-  if (minX > maxX || minY > maxY) return false;
-
-  let posX = minX;
-  let posY = minY;
-
-  if (direction === "right") {
-    posX = minX;
-    posY = randomBetween(minY, maxY);
-  } else if (direction === "left") {
-    posX = maxX;
-    posY = randomBetween(minY, maxY);
-  } else if (direction === "down") {
-    posY = minY;
-    posX = randomBetween(minX, maxX);
-  } else if (direction === "up") {
-    posY = maxY;
-    posX = randomBetween(minX, maxX);
-  }
-
-  if (!isPlacementValid(rotated, posX, posY)) {
-    return false;
-  }
-
-  placePattern(rotated, posX, posY);
-  return true;
-}
-
-function injectIfNeededEntropy() {
-  if (entropyStreak < settings.entropyFrames) return;
-  const patternName = getPatternForEntropy(entropySmooth);
-  let injected = 0;
-  let attempts = 0;
-  const maxAttempts = settings.injections * 6;
-  while (injected < settings.injections && attempts < maxAttempts) {
-    if (tryInjectPattern(patternName)) {
-      injected += 1;
-    }
-    attempts += 1;
-  }
-  entropyStreak = 0;
 }
 
 function injectIfNeededCorridor() {
@@ -600,11 +454,7 @@ function injectIfNeededCorridor() {
 }
 
 function injectIfNeeded() {
-  if (settings.keepAliveMode === "entropy") {
-    injectIfNeededEntropy();
-  } else if (settings.keepAliveMode === "corridor") {
-    injectIfNeededCorridor();
-  }
+  injectIfNeededCorridor();
 }
 
 function randomBetween(min, max) {
@@ -645,9 +495,9 @@ function stepSimulation() {
 
   swapBuffers();
 
-  const { p, h } = computeEntropy(aliveCount);
-  updateEntropy(h);
-  updateStatus(p, h);
+  const total = settings.cols * settings.rows;
+  const p = total === 0 ? 0 : aliveCount / total;
+  updateStatus(p);
   cycleCount += 1;
   injectIfNeeded();
 }
@@ -746,11 +596,8 @@ function drawGlowOverlay() {
   ctx.restore();
 }
 
-function updateStatus(p, h) {
+function updateStatus(p) {
   statusDensity.textContent = p.toFixed(3);
-  statusEntropy.textContent = h.toFixed(3);
-  statusEntropySmooth.textContent = entropySmooth.toFixed(3);
-  statusEntropyStreak.textContent = entropyStreak.toString();
 }
 
 function render() {
@@ -813,19 +660,29 @@ function bindControls() {
   bindSelect("glowBlendMode", (value) => {
     glowConfig.blendMode = value;
   });
-  bindPair("entropyMinRange", "entropyMinNumber", (value) => {
-    settings.entropyMin = Math.max(0, value);
-  });
-  bindPair("entropyWindowRange", "entropyWindowNumber", (value) => {
-    settings.entropyWindow = Math.max(1, value);
-    entropyHistory = [];
-  });
-  bindPair("entropyFramesRange", "entropyFramesNumber", (value) => {
-    settings.entropyFrames = Math.max(1, value);
-  });
   bindPair("injectionsRange", "injectionsNumber", (value) => {
     settings.injections = Math.max(1, value);
   });
+  bindPair("injectionPeriodRange", "injectionPeriodNumber", (value) => {
+    settings.injectionPeriod = Math.max(1, value);
+  });
+  bindPair("corridorMaxStepsRange", "corridorMaxStepsNumber", (value) => {
+    settings.corridorMaxSteps = Math.max(1, value);
+    corridorCache.clear();
+  });
+  bindPair("corridorMinLengthRange", "corridorMinLengthNumber", (value) => {
+    settings.corridorMinLength = Math.max(1, value);
+  });
+  bindPair("corridorAttemptsRange", "corridorAttemptsNumber", (value) => {
+    settings.corridorAttempts = Math.max(1, value);
+  });
+  bindPair(
+    "corridorEdgeAttemptsRange",
+    "corridorEdgeAttemptsNumber",
+    (value) => {
+      settings.corridorEdgeAttempts = Math.max(1, value);
+    }
+  );
 
   bindColor("bgColor", (value) => {
     settings.bgColor = value;

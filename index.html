@@ -132,31 +132,45 @@
             </div>
           </div>
           <div class="control">
-            <label for="entropyMinRange">Entropy threshold (H_min)</label>
-            <div class="control-row">
-              <input id="entropyMinRange" type="range" min="0" max="0.7" step="0.01" value="0.22" />
-              <input id="entropyMinNumber" type="number" min="0" max="0.7" step="0.01" value="0.22" />
-            </div>
-          </div>
-          <div class="control">
-            <label for="entropyWindowRange">Entropy smoothing window (frames)</label>
-            <div class="control-row">
-              <input id="entropyWindowRange" type="range" min="5" max="180" step="1" value="45" />
-              <input id="entropyWindowNumber" type="number" min="5" max="180" step="1" value="45" />
-            </div>
-          </div>
-          <div class="control">
-            <label for="entropyFramesRange">Low-entropy streak (frames)</label>
-            <div class="control-row">
-              <input id="entropyFramesRange" type="range" min="5" max="240" step="1" value="40" />
-              <input id="entropyFramesNumber" type="number" min="5" max="240" step="1" value="40" />
-            </div>
-          </div>
-          <div class="control">
             <label for="injectionsRange">Injections per trigger</label>
             <div class="control-row">
               <input id="injectionsRange" type="range" min="1" max="8" step="1" value="2" />
               <input id="injectionsNumber" type="number" min="1" max="8" step="1" value="2" />
+            </div>
+          </div>
+          <div class="control">
+            <label for="injectionPeriodRange">Injection period (steps)</label>
+            <div class="control-row">
+              <input id="injectionPeriodRange" type="range" min="10" max="300" step="1" value="80" />
+              <input id="injectionPeriodNumber" type="number" min="10" max="300" step="1" value="80" />
+            </div>
+          </div>
+          <div class="control">
+            <label for="corridorMaxStepsRange">Corridor max steps</label>
+            <div class="control-row">
+              <input id="corridorMaxStepsRange" type="range" min="20" max="220" step="1" value="120" />
+              <input id="corridorMaxStepsNumber" type="number" min="20" max="220" step="1" value="120" />
+            </div>
+          </div>
+          <div class="control">
+            <label for="corridorMinLengthRange">Corridor min length</label>
+            <div class="control-row">
+              <input id="corridorMinLengthRange" type="range" min="10" max="120" step="1" value="40" />
+              <input id="corridorMinLengthNumber" type="number" min="10" max="120" step="1" value="40" />
+            </div>
+          </div>
+          <div class="control">
+            <label for="corridorAttemptsRange">Corridor attempts</label>
+            <div class="control-row">
+              <input id="corridorAttemptsRange" type="range" min="1" max="60" step="1" value="24" />
+              <input id="corridorAttemptsNumber" type="number" min="1" max="60" step="1" value="24" />
+            </div>
+          </div>
+          <div class="control">
+            <label for="corridorEdgeAttemptsRange">Edge attempts per side</label>
+            <div class="control-row">
+              <input id="corridorEdgeAttemptsRange" type="range" min="1" max="20" step="1" value="8" />
+              <input id="corridorEdgeAttemptsNumber" type="number" min="1" max="20" step="1" value="8" />
             </div>
           </div>
         </section>
@@ -166,18 +180,6 @@
             <div class="status-item">
               <span>Density p</span>
               <strong id="statusDensity">0.000</strong>
-            </div>
-            <div class="status-item">
-              <span>Entropy H</span>
-              <strong id="statusEntropy">0.000</strong>
-            </div>
-            <div class="status-item">
-              <span>Smoothed H̄</span>
-              <strong id="statusEntropySmooth">0.000</strong>
-            </div>
-            <div class="status-item">
-              <span>Low-entropy streak</span>
-              <strong id="statusEntropyStreak">0</strong>
             </div>
           </div>
         </section>
