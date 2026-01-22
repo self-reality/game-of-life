@@ -30,6 +30,16 @@ node render_precomputed.js --config input/render_config.json --input output/simu
 The renderer writes video chunks and resumes from `outputPath.progress.json`.
 Stop with `Ctrl+C` and rerun to continue from the last completed chunk.
 
+## Concatenate superchunks
+
+After rendering, join the `*.superchunk_*.mp4` files into one movie. Edit
+`INPUT_DIR` in `concat_superchunks.js` to the folder containing the superchunks,
+then run:
+
+```
+node concat_superchunks.js
+```
+
 ### Export format
 
 The export file is a binary stream:
