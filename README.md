@@ -1,6 +1,6 @@
 # Game of Life
 
-node render_precomputed.js --config render_config.json --input '/Volumes/Smartbuy P5/Media Production/Production Videos/Long/simulation.bin'
+node render_precomputed.js --config input/render_config.json --input '/Volumes/Smartbuy P5/Media Production/Production Videos/Long/simulation.bin'
 
 ## Motivation
 
@@ -13,7 +13,7 @@ format is compact and optimized for random access.
 Generate a precomputed simulation export:
 
 ```
-node precompute.js --config render_config.json --out output/simulation.bin
+node precompute.js --config input/render_config.json --out output/simulation.bin
 ```
 
 The precompute step verifies that duration and frame timing align with
@@ -24,7 +24,7 @@ The precompute step verifies that duration and frame timing align with
 Render a video from the precomputed export (no glow/blending):
 
 ```
-node render_precomputed.js --config render_config.json --input output/simulation.bin
+node render_precomputed.js --config input/render_config.json --input output/simulation.bin
 ```
 
 The renderer writes video chunks and resumes from `outputPath.progress.json`.

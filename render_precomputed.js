@@ -7,7 +7,7 @@ const { createSimulationState } = require("./simulation_core");
 
 function parseArgs(argv) {
   const args = {
-    config: "render_config.json",
+    config: "input/render_config.json",
     input: "output/simulation.bin",
     output: null,
     progress: null,

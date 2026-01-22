@@ -4,7 +4,7 @@ const path = require("path");
 const { createSimulationState, stepSimulation } = require("./simulation_core");
 
 function parseArgs(argv) {
-  const args = { config: "render_config.json", out: null };
+  const args = { config: "input/render_config.json", out: null };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--config" && argv[i + 1]) {
