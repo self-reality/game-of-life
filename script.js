@@ -23,6 +23,14 @@ const settings = {
   corridorAttempts: 24,
   corridorEdgeAttempts: 8,
   initialAliveProbability: 0.25,
+  sound: {
+    maxVoicesPerRegion: 4,
+    regionWidth: 24,
+    numOctaves: 4,
+    centerOctave: 0,
+    noteStartRandomMs: 6,
+    attackRandomMs: 1,
+  },
 };
 
 let simulation = SimulationCore.createSimulationState(settings, Math.random);
@@ -42,6 +50,55 @@ const glowConfig = {
   alpha: 1,
   blendMode: "lighten",
 };
+
+const soundState = {
+  enabled: false,
+  drift: null,
+};
+
+function canUseSound() {
+  return (
+    typeof SoundMapping !== "undefined" &&
+    typeof DriftEmulator === "function" &&
+    typeof Tone !== "undefined"
+  );
+}
+
+function initSoundEngine() {
+  if (!canUseSound() || soundState.drift) return;
+  soundState.drift = new DriftEmulator();
+}
+
+function enableSound() {
+  if (soundState.enabled) return;
+  initSoundEngine();
+  if (!soundState.drift || typeof Tone === "undefined") return;
+  Tone.start().then(() => {
+    soundState.enabled = true;
+  });
+}
+
+function emitSoundForCycle() {
+  if (!soundState.enabled || !soundState.drift || !canUseSound()) return;
+  const events = SoundMapping.getNoteEventsForCycle({
+    cells,
+    ages,
+    cols: settings.cols,
+    rows: settings.rows,
+    soundSettings: settings.sound,
+    rng: Math.random,
+  });
+  if (!events.length) return;
+  const noteDuration = Math.max(0.02, 1 / settings.speed);
+  events.forEach((event) => {
+    soundState.drift.playNote(
+      event.note,
+      noteDuration,
+      event.attackMs,
+      event.startMs
+    );
+  });
+}
 
 const patterns = {
   glider: [
@@ -469,6 +526,7 @@ function stepSimulation() {
   );
   syncSimulationBuffers();
   updateStatus(density);
+  emitSoundForCycle();
 }
 
 function drawBackground() {
@@ -652,6 +710,24 @@ function bindControls() {
       settings.corridorEdgeAttempts = Math.max(1, value);
     }
   );
+  bindPair("soundMaxVoicesRange", "soundMaxVoicesNumber", (value) => {
+    settings.sound.maxVoicesPerRegion = Math.max(1, value);
+  });
+  bindPair("soundRegionWidthRange", "soundRegionWidthNumber", (value) => {
+    settings.sound.regionWidth = Math.max(1, value);
+  });
+  bindPair("soundOctavesRange", "soundOctavesNumber", (value) => {
+    settings.sound.numOctaves = Math.max(1, value);
+  });
+  bindPair("soundCenterOctaveRange", "soundCenterOctaveNumber", (value) => {
+    settings.sound.centerOctave = Math.round(value);
+  });
+  bindPair("soundStartRandomRange", "soundStartRandomNumber", (value) => {
+    settings.sound.noteStartRandomMs = Math.max(0, value);
+  });
+  bindPair("soundAttackRandomRange", "soundAttackRandomNumber", (value) => {
+    settings.sound.attackRandomMs = Math.max(0, value);
+  });
 
   bindColor("bgColor", (value) => {
     settings.bgColor = value;
@@ -673,6 +749,8 @@ function bindControls() {
 function start() {
   bindControls();
   applySettings();
+  canvas.addEventListener("pointerdown", enableSound, { once: true });
+  document.addEventListener("keydown", enableSound, { once: true });
   requestAnimationFrame(tick);
 }
 

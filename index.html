@@ -175,6 +175,51 @@
           </div>
         </section>
         <section class="panel-section">
+          <h2>Sound</h2>
+          <div class="control">
+            <label for="soundMaxVoicesRange">Max sounds per region</label>
+            <div class="control-row">
+              <input id="soundMaxVoicesRange" type="range" min="1" max="12" step="1" value="4" />
+              <input id="soundMaxVoicesNumber" type="number" min="1" max="12" step="1" value="4" />
+            </div>
+          </div>
+          <div class="control">
+            <label for="soundRegionWidthRange">Region width (cells)</label>
+            <div class="control-row">
+              <input id="soundRegionWidthRange" type="range" min="4" max="120" step="1" value="24" />
+              <input id="soundRegionWidthNumber" type="number" min="4" max="120" step="1" value="24" />
+            </div>
+          </div>
+          <div class="control">
+            <label for="soundOctavesRange">Octaves across width</label>
+            <div class="control-row">
+              <input id="soundOctavesRange" type="range" min="1" max="8" step="1" value="4" />
+              <input id="soundOctavesNumber" type="number" min="1" max="8" step="1" value="4" />
+            </div>
+          </div>
+          <div class="control">
+            <label for="soundCenterOctaveRange">Center octave</label>
+            <div class="control-row">
+              <input id="soundCenterOctaveRange" type="range" min="-3" max="5" step="1" value="0" />
+              <input id="soundCenterOctaveNumber" type="number" min="-3" max="5" step="1" value="0" />
+            </div>
+          </div>
+          <div class="control">
+            <label for="soundStartRandomRange">Note start randomization (ms)</label>
+            <div class="control-row">
+              <input id="soundStartRandomRange" type="range" min="0" max="50" step="1" value="6" />
+              <input id="soundStartRandomNumber" type="number" min="0" max="50" step="1" value="6" />
+            </div>
+          </div>
+          <div class="control">
+            <label for="soundAttackRandomRange">Attack randomization span (ms)</label>
+            <div class="control-row">
+              <input id="soundAttackRandomRange" type="range" min="0" max="5" step="0.1" value="1" />
+              <input id="soundAttackRandomNumber" type="number" min="0" max="5" step="0.1" value="1" />
+            </div>
+          </div>
+        </section>
+        <section class="panel-section">
           <h2>Status</h2>
           <div class="status-grid">
             <div class="status-item">
@@ -185,6 +230,9 @@
         </section>
       </aside>
     </main>
+    <script src="https://unpkg.com/tone@latest/build/Tone.js"></script>
+    <script src="sound/sound_mapping.js"></script>
+    <script src="sound/drift_emulator.js"></script>
     <script src="simulation_core.js"></script>
     <script src="script.js"></script>
   </body>
