@@ -40,6 +40,17 @@ then run:
 node concat_superchunks.js
 ```
 
+## Paperclip scan
+
+Scan the precomputed export for the paperclip still life (all rotations + reflections):
+
+```
+node tools/find_paperclip.js --input "/Volumes/Smartbuy P5/Media Production/Production Videos/Long/simulation.bin" --test
+```
+
+Matches are written to `tools/paperclip_hits.csv`. The script writes resume state to
+`tools/paperclip_hits.resume.json` so you can rerun without rescanning completed cycles.
+
 ### Export format
 
 The export file is a binary stream:
