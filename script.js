@@ -29,7 +29,6 @@ const settings = {
     numOctaves: 4,
     centerOctave: 0,
     noteStartRandomMs: 6,
-    attackRandomMs: 1,
   },
 };
 
@@ -725,10 +724,6 @@ function bindControls() {
   bindPair("soundStartRandomRange", "soundStartRandomNumber", (value) => {
     settings.sound.noteStartRandomMs = Math.max(0, value);
   });
-  bindPair("soundAttackRandomRange", "soundAttackRandomNumber", (value) => {
-    settings.sound.attackRandomMs = Math.max(0, value);
-  });
-
   bindColor("bgColor", (value) => {
     settings.bgColor = value;
   });

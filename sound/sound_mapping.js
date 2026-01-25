@@ -52,13 +52,12 @@
     return midi;
   }
 
-  function mapXToAttackMs(x, cols, soundSettings, rng) {
+  function mapXToAttackMs(x, cols, soundSettings) {
     const safeCols = Math.max(1, cols);
     const t = safeCols === 1 ? 0 : x / (safeCols - 1);
-    const baseAttack = t * 2.87;
-    const span = Math.max(0, Number(soundSettings.attackRandomMs) || 0);
-    const offset = randomBetween(-span / 2, span / 2, rng);
-    return Math.max(0, baseAttack + offset);
+    const minAttackMs = 1;
+    const maxAttackMs = 2.67;
+    return minAttackMs + t * (maxAttackMs - minAttackMs);
   }
 
   function mapXToStartMs(soundSettings, rng) {
@@ -122,7 +121,7 @@
         x,
         midi,
         note: midiToNoteName(midi),
-        attackMs: mapXToAttackMs(x, cols, soundSettings, rng),
+        attackMs: mapXToAttackMs(x, cols, soundSettings),
         startMs: mapXToStartMs(soundSettings, rng),
       };
     });
