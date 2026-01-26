@@ -1,3 +1,5 @@
 .DS_Store
 output/game-of-life.mp4
 /output
+tools/_paperclip_hits.csv
+tools/_paperclip_hits.resume.json
