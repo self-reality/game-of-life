@@ -8,6 +8,21 @@ The simulation can be precomputed so later renders can process cycles in chunks,
 addressing a desired cycle range without re-running the simulation. The export
 format is compact and optimized for random access.
 
+## Injection (corridor) method
+
+When `injectionPeriod` is reached, the simulator attempts to inject a small
+ship pattern by finding a clear corridor from an edge:
+
+- Pick a ship pattern and random rotation.
+- Simulate the pattern for up to `corridorMaxSteps` to estimate its travel
+  direction and step-by-step footprint.
+- Determine which edges are sensible entry points based on the direction, then
+  try random entry positions along those edges.
+- For each attempt, measure how many steps stay clear of existing live cells.
+  Keep the best placement and require at least `corridorMinLength` steps.
+- If a valid corridor is found, place the pattern at the entry position and
+  repeat until `injections` are placed or no corridor can be found.
+
 ## Precompute export
 
 Generate a precomputed simulation export:
