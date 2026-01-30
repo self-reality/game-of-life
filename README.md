@@ -13,7 +13,7 @@ format is compact and optimized for random access.
 When `injectionPeriod` is reached, the simulator attempts to inject a small
 ship pattern by finding a clear corridor from an edge:
 
-- Pick a ship pattern and random rotation.
+- Pick a ship pattern and random rotation (glider, lightweight spaceship (lwss), middleweight spaceship (mwss), heavyweight spaceship (hwss)).
 - Simulate the pattern for up to `corridorMaxSteps` to estimate its travel
   direction and step-by-step footprint.
 - Determine which edges are sensible entry points based on the direction, then
