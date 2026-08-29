@@ -23,6 +23,7 @@ const settings = {
   corridorAttempts: 24,
   corridorEdgeAttempts: 8,
   initialAliveProbability: 0.25,
+  wrapHorizontal: true,
   sound: {
     maxVoicesPerRegion: 4,
     regionWidth: 24,
@@ -662,6 +663,9 @@ function bindControls() {
   bindPair("rowsRange", "rowsNumber", (value) => {
     settings.rows = Math.max(10, value);
     applySettings();
+  });
+  bindSelect("horizontalEdges", (value) => {
+    settings.wrapHorizontal = value === "wrap";
   });
   bindPair("cellSizeRange", "cellSizeNumber", (value) => {
     settings.cellSize = Math.max(1, value);

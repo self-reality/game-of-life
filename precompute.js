@@ -126,6 +126,7 @@ async function run() {
     totalCycles,
     gridWidth: settings.cols,
     gridHeight: settings.rows,
+    wrapHorizontal: settings.wrapHorizontal !== false,
     seed,
   };
   const headerBuffer = Buffer.from(JSON.stringify(header), "utf8");

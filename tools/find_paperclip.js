@@ -202,14 +202,15 @@ function validateResume(resume, header, inputPath) {
   }
 }
 
-function matchVariant(buffer, gridWidth, startX, startY, variant) {
+function matchVariant(buffer, gridWidth, startX, startY, variant, wrapX) {
   const { width, height, grid } = variant;
   for (let y = 0; y < height; y += 1) {
     const row = grid[y];
-    let offset = (startY + y) * gridWidth + startX;
+    const offset = (startY + y) * gridWidth;
     for (let x = 0; x < width; x += 1) {
+      const col = wrapX ? (startX + x) % gridWidth : startX + x;
       const alive = row[x] === 1;
-      const cellAlive = buffer[offset + x] !== 0;
+      const cellAlive = buffer[offset + col] !== 0;
       if (alive !== cellAlive) return false;
     }
   }
@@ -231,6 +232,7 @@ async function run() {
   const gridWidth = Number(header.gridWidth);
   const gridHeight = Number(header.gridHeight);
   const totalCycles = Number(header.totalCycles);
+  const wrapX = header.wrapHorizontal === true;
   const gridSize = gridWidth * gridHeight;
 
   const resume = loadResume(resumePath);
@@ -242,7 +244,8 @@ async function run() {
   ensureCsvHeader(outPath);
 
   console.log(
-    `Scanning ${inputPath} (${gridWidth}x${gridHeight}, ${totalCycles} cycles)`
+    `Scanning ${inputPath} (${gridWidth}x${gridHeight}, ${totalCycles} cycles, ` +
+      `horizontal edges: ${wrapX ? "wrapped" : "walls"})`
   );
   console.log(`Variants: ${variants.map((variant) => variant.name).join(", ")}`);
   if (args.test) {
@@ -262,11 +265,11 @@ async function run() {
     }
 
     for (const variant of variants) {
-      const maxX = gridWidth - variant.width;
+      const maxX = wrapX ? gridWidth - 1 : gridWidth - variant.width;
       const maxY = gridHeight - variant.height;
       for (let y = 0; y <= maxY; y += 1) {
         for (let x = 0; x <= maxX; x += 1) {
-          if (matchVariant(buffer, gridWidth, x, y, variant)) {
+          if (matchVariant(buffer, gridWidth, x, y, variant, wrapX)) {
             const row = `${cycle},${x},${y},${variant.name}\n`;
             fs.appendFileSync(outPath, row);
             matchesFound += 1;

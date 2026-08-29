@@ -8,6 +8,7 @@
   "settings": {
     "cols": 248,
     "rows": 136,
+    "wrapHorizontal": true,
     "cellSize": 5,
     "speed": 18,
     "margin": 20,

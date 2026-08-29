@@ -58,6 +58,7 @@
       nextAges: new Uint16Array(settings.cols * settings.rows),
       cycleCount: 0,
       corridorCache: new Map(),
+      columnNeighbors: null,
     };
     seedGrid(state, settings, rng);
     return state;
@@ -70,6 +71,7 @@
     state.nextAges = new Uint16Array(settings.cols * settings.rows);
     state.cycleCount = 0;
     state.corridorCache = new Map();
+    state.columnNeighbors = null;
     seedGrid(state, settings, rng);
   }
 
@@ -85,25 +87,50 @@
     }
   }
 
+  function wrapsX(settings) {
+    return settings.wrapHorizontal !== false && settings.cols >= 3;
+  }
+
+  function wrapX(x, cols) {
+    const wrapped = x % cols;
+    return wrapped < 0 ? wrapped + cols : wrapped;
+  }
+
+  function getColumnNeighbors(state, settings) {
+    const { cols } = settings;
+    const wrap = wrapsX(settings);
+    const cached = state.columnNeighbors;
+    if (cached && cached.cols === cols && cached.wrap === wrap) return cached;
+
+    const left = new Int32Array(cols);
+    const right = new Int32Array(cols);
+    for (let x = 0; x < cols; x += 1) {
+      left[x] = x > 0 ? x - 1 : wrap ? cols - 1 : -1;
+      right[x] = x < cols - 1 ? x + 1 : wrap ? 0 : -1;
+    }
+    state.columnNeighbors = { cols, wrap, left, right };
+    return state.columnNeighbors;
+  }
+
   function stepSimulation(state, settings, rng = Math.random) {
     let aliveCount = 0;
     const { cols, rows } = settings;
     const { cells, ages, nextCells, nextAges } = state;
+    const { left: leftCol, right: rightCol } = getColumnNeighbors(state, settings);
 
     for (let y = 0; y < rows; y += 1) {
       const rowOffset = y * cols;
       for (let x = 0; x < cols; x += 1) {
+        const xLeft = leftCol[x];
+        const xRight = rightCol[x];
         let neighbors = 0;
         for (let dy = -1; dy <= 1; dy += 1) {
           const yy = y + dy;
           if (yy < 0 || yy >= rows) continue;
           const neighborRow = yy * cols;
-          for (let dx = -1; dx <= 1; dx += 1) {
-            if (dx === 0 && dy === 0) continue;
-            const xx = x + dx;
-            if (xx < 0 || xx >= cols) continue;
-            neighbors += cells[neighborRow + xx];
-          }
+          if (xLeft >= 0) neighbors += cells[neighborRow + xLeft];
+          if (xRight >= 0) neighbors += cells[neighborRow + xRight];
+          if (dy !== 0) neighbors += cells[neighborRow + x];
         }
 
         const idx = rowOffset + x;
@@ -339,17 +366,16 @@
       if (minY > maxY) return null;
       return { posX, posY: randomBetween(minY, maxY, rng) };
     }
+    const wrap = wrapsX(settings);
+    const minX = wrap ? 0 : -step0Bounds.minX;
+    const maxX = wrap ? settings.cols - 1 : settings.cols - 1 - step0Bounds.maxX;
     if (edge === "top") {
       const posY = -step0Bounds.minY;
-      const minX = -step0Bounds.minX;
-      const maxX = settings.cols - 1 - step0Bounds.maxX;
       if (minX > maxX) return null;
       return { posX: randomBetween(minX, maxX, rng), posY };
     }
     if (edge === "bottom") {
       const posY = settings.rows - 1 - step0Bounds.maxY;
-      const minX = -step0Bounds.minX;
-      const maxX = settings.cols - 1 - step0Bounds.maxX;
       if (minX > maxX) return null;
       return { posX: randomBetween(minX, maxX, rng), posY };
     }
@@ -357,14 +383,19 @@
   }
 
   function isCorridorStepClear(state, settings, stepCells, posX, posY) {
+    const { cols, rows } = settings;
+    const wrap = wrapsX(settings);
     for (let i = 0; i < stepCells.length; i += 1) {
       const [x, y] = stepCells[i];
-      const xx = posX + x;
+      let xx = posX + x;
       const yy = posY + y;
-      if (xx < 0 || xx >= settings.cols || yy < 0 || yy >= settings.rows) {
+      if (yy < 0 || yy >= rows) return false;
+      if (wrap) {
+        xx = wrapX(xx, cols);
+      } else if (xx < 0 || xx >= cols) {
         return false;
       }
-      if (state.cells[yy * settings.cols + xx] === 1) return false;
+      if (state.cells[yy * cols + xx] === 1) return false;
     }
     return true;
   }
@@ -420,11 +451,18 @@
   }
 
   function placePattern(state, settings, pattern, posX, posY) {
+    const { cols, rows } = settings;
+    const wrap = wrapsX(settings);
     pattern.forEach(([x, y]) => {
-      const xx = posX + x;
+      let xx = posX + x;
       const yy = posY + y;
-      if (xx < 0 || xx >= settings.cols || yy < 0 || yy >= settings.rows) return;
-      const idx = yy * settings.cols + xx;
+      if (yy < 0 || yy >= rows) return;
+      if (wrap) {
+        xx = wrapX(xx, cols);
+      } else if (xx < 0 || xx >= cols) {
+        return;
+      }
+      const idx = yy * cols + xx;
       state.cells[idx] = 1;
       state.ages[idx] = 1;
     });

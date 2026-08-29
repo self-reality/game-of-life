@@ -8,6 +8,18 @@ The simulation can be precomputed so later renders can process cycles in chunks,
 addressing a desired cycle range without re-running the simulation. The export
 format is compact and optimized for random access.
 
+## Field topology
+
+The left and right edges are stitched together, so the field is a cylinder: a
+ship leaving one side re-enters the other at the same height. Top and bottom
+stay walls. Set `settings.wrapHorizontal` to `false` for the old
+walls-on-all-sides behaviour (below 3 columns the wrap is ignored, since a cell
+would otherwise count the same neighbour twice).
+
+Wrapping removes two of the four edges that used to destroy ships, so spaceships
+survive much longer and keep circling until something collides with them. An
+lwss laps a 248-column field every 496 cycles.
+
 ## Injection (corridor) method
 
 When `injectionPeriod` is reached, the simulator attempts to inject a small
@@ -17,8 +29,11 @@ ship pattern by finding a clear corridor from an edge:
 - Simulate the pattern for up to `corridorMaxSteps` to estimate its travel
   direction and step-by-step footprint.
 - Determine which edges are sensible entry points based on the direction, then
-  try random entry positions along those edges.
+  try random entry positions along those edges. Ships still enter at the left or
+  right column so they appear at the frame edge; when wrapping is on, top and
+  bottom entries may straddle the seam.
 - For each attempt, measure how many steps stay clear of existing live cells.
+  Corridors and placements wrap horizontally when `wrapHorizontal` is on.
   Keep the best placement and require at least `corridorMinLength` steps.
 - If a valid corridor is found, place the pattern at the entry position and
   repeat until `injections` are placed or no corridor can be found.
@@ -63,6 +78,10 @@ Scan the precomputed export for the paperclip still life (all rotations + reflec
 node tools/find_paperclip.js --input "/Volumes/Smartbuy P5/Media Production/Production Videos/Long/simulation.bin" --test
 ```
 
+The scan follows the export's `wrapHorizontal` header field, so on a wrapped
+export it also finds matches straddling the seam. Exports written before the
+field existed are scanned as walls.
+
 Matches are written to `tools/paperclip_hits.csv`. The script writes resume state to
 `tools/paperclip_hits.resume.json` so you can rerun without rescanning completed cycles.
 
@@ -81,6 +100,7 @@ Header fields:
 - `totalCycles`
 - `gridWidth`
 - `gridHeight`
+- `wrapHorizontal`
 - `seed`
 - `version`
 
