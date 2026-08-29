@@ -42,6 +42,7 @@ let nextAges = simulation.nextAges;
 let lastTime = 0;
 let accumulator = 0;
 let cycleCount = 0;
+let needsRender = true;
 
 const corridorCache = new Map();
 
@@ -155,30 +156,31 @@ function bindPair(rangeId, numberId, onChange) {
   const range = document.getElementById(rangeId);
   const number = document.getElementById(numberId);
 
-  const sync = (value) => {
+  const apply = (value) => {
     range.value = value;
     number.value = value;
+    onChange(Number(value));
+    needsRender = true;
   };
 
-  range.addEventListener("input", () => {
-    sync(range.value);
-    onChange(Number(range.value));
-  });
-
-  number.addEventListener("input", () => {
-    sync(number.value);
-    onChange(Number(number.value));
-  });
+  range.addEventListener("input", () => apply(range.value));
+  number.addEventListener("input", () => apply(number.value));
 }
 
 function bindColor(id, onChange) {
   const input = document.getElementById(id);
-  input.addEventListener("input", () => onChange(input.value));
+  input.addEventListener("input", () => {
+    onChange(input.value);
+    needsRender = true;
+  });
 }
 
 function bindSelect(id, onChange) {
   const select = document.getElementById(id);
-  select.addEventListener("change", () => onChange(select.value));
+  select.addEventListener("change", () => {
+    onChange(select.value);
+    needsRender = true;
+  });
 }
 
 function resizeCanvases() {
@@ -527,6 +529,7 @@ function stepSimulation() {
   syncSimulationBuffers();
   updateStatus(density);
   emitSoundForCycle();
+  needsRender = true;
 }
 
 function drawBackground() {
@@ -646,13 +649,18 @@ function tick(timestamp) {
     accumulator -= stepTime;
   }
 
-  render();
+  if (needsRender) {
+    render();
+    needsRender = false;
+  }
+
   requestAnimationFrame(tick);
 }
 
 function applySettings() {
   resizeCanvases();
   resetGrid();
+  needsRender = true;
 }
 
 function bindControls() {
