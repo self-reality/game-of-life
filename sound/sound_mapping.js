@@ -13,14 +13,14 @@
     return `${NOTE_NAMES[noteIndex]}${octave}`;
   }
 
-  function getActiveColumns({ cells, ages, snapshot, cols, rows }) {
+  function getActiveRows({ cells, ages, snapshot, cols, rows }) {
     const active = new Set();
     if (snapshot) {
       for (let y = 0; y < rows; y += 1) {
         const rowOffset = y * cols;
         for (let x = 0; x < cols; x += 1) {
           const state = snapshot[rowOffset + x];
-          if (state === 2) active.add(x);
+          if (state === 2) active.add(y);
         }
       }
       return active;
@@ -33,16 +33,16 @@
         if (cells[idx] !== 1) continue;
         const age = ages[idx];
         if (age >= 2 && age <= 9) {
-          active.add(x);
+          active.add(y);
         }
       }
     }
     return active;
   }
 
-  function mapXToMidi(x, cols, soundSettings) {
-    const safeCols = Math.max(1, cols);
-    const t = safeCols === 1 ? 0 : x / (safeCols - 1);
+  function mapYToMidi(y, rows, soundSettings) {
+    const safeRows = Math.max(1, rows);
+    const t = safeRows === 1 ? 0 : y / (safeRows - 1);
     const octaves = Math.max(1, Number(soundSettings.numOctaves) || 1);
     const centerOctave = Number(soundSettings.centerOctave) || 0;
     const centerMidi = (centerOctave + 1) * 12;
@@ -52,38 +52,38 @@
     return midi;
   }
 
-  function mapXToAttackMs(x, cols, soundSettings) {
-    const safeCols = Math.max(1, cols);
-    const t = safeCols === 1 ? 0 : x / (safeCols - 1);
+  function mapYToAttackMs(y, rows, soundSettings) {
+    const safeRows = Math.max(1, rows);
+    const t = safeRows === 1 ? 0 : y / (safeRows - 1);
     const minAttackMs = 1;
     const maxAttackMs = 2.67;
     return minAttackMs + t * (maxAttackMs - minAttackMs);
   }
 
-  function mapXToStartMs(soundSettings, rng) {
+  function mapToStartMs(soundSettings, rng) {
     const span = Math.max(0, Number(soundSettings.noteStartRandomMs) || 0);
     return span === 0 ? 0 : randomBetween(0, span, rng);
   }
 
-  function limitRegionVoices(activeColumns, soundSettings, rng) {
+  function limitRegionVoices(activeRows, soundSettings, rng) {
     const regionWidth = Math.max(1, Number(soundSettings.regionWidth) || 1);
     const maxVoices = Math.max(1, Number(soundSettings.maxVoicesPerRegion) || 1);
     const regionMap = new Map();
 
-    activeColumns.forEach((x) => {
-      const regionIndex = Math.floor(x / regionWidth);
+    activeRows.forEach((y) => {
+      const regionIndex = Math.floor(y / regionWidth);
       if (!regionMap.has(regionIndex)) regionMap.set(regionIndex, []);
-      regionMap.get(regionIndex).push(x);
+      regionMap.get(regionIndex).push(y);
     });
 
     const selected = [];
-    regionMap.forEach((xs) => {
-      xs.sort((a, b) => a - b);
-      if (xs.length <= maxVoices) {
-        selected.push(...xs);
+    regionMap.forEach((ys) => {
+      ys.sort((a, b) => a - b);
+      if (ys.length <= maxVoices) {
+        selected.push(...ys);
         return;
       }
-      const shuffled = xs.slice();
+      const shuffled = ys.slice();
       for (let i = shuffled.length - 1; i > 0; i -= 1) {
         const j = Math.floor(randomBetween(0, i + 1, rng));
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -105,24 +105,24 @@
     rng,
   }) {
     if (!soundSettings || cols <= 0 || rows <= 0) return [];
-    const activeColumns = getActiveColumns({
+    const activeRows = getActiveRows({
       cells,
       ages,
       snapshot,
       cols,
       rows,
     });
-    if (activeColumns.size === 0) return [];
+    if (activeRows.size === 0) return [];
 
-    const limitedColumns = limitRegionVoices(activeColumns, soundSettings, rng);
-    return limitedColumns.map((x) => {
-      const midi = mapXToMidi(x, cols, soundSettings);
+    const limitedRows = limitRegionVoices(activeRows, soundSettings, rng);
+    return limitedRows.map((y) => {
+      const midi = mapYToMidi(y, rows, soundSettings);
       return {
-        x,
+        y,
         midi,
         note: midiToNoteName(midi),
-        attackMs: mapXToAttackMs(x, cols, soundSettings),
-        startMs: mapXToStartMs(soundSettings, rng),
+        attackMs: mapYToAttackMs(y, rows, soundSettings),
+        startMs: mapToStartMs(soundSettings, rng),
       };
     });
   }
