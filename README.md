@@ -44,6 +44,14 @@ left, or right (gliders diagonally). The ship is centred on the clicked cell and
 pushed back inside the field if it would hang over a wall; on a wrapped field it
 may straddle the seam. Clicks in the margin or the pitch ruler are ignored.
 
+### Pitch ruler and region bands
+
+The gutter left of the field carries two scales for the sound mapping. Ticks and
+note names mark the octaves the field spans; notes outside C0-C9 are red, since
+they are rumble or a squeak. The strip hugging the field alternates shade every
+`sound.regionWidth` rows, so each block is one voice region: at most
+`sound.maxVoicesPerRegion` of its rows sound on a cycle.
+
 ## Precompute export
 
 Generate a precomputed simulation export:

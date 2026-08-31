@@ -50,6 +50,9 @@ const rulerConfig = {
   textColor: "#8a8a8a",
   outOfRangeColor: "#c2544a",
   fontSize: 10,
+  bandWidth: 7,
+  bandColors: ["#3d3d3d", "#161616"],
+  bandEdgeColor: "#5c5c5c",
 };
 
 const soundState = {
@@ -301,17 +304,44 @@ function drawGlowOverlay() {
   ctx.restore();
 }
 
+// Voices are capped per region, and a region is a band of rows, so the strip
+// between the axis and the field shows where one band ends and the next begins.
+function drawRegionBands(left, top) {
+  const regionWidth = Math.max(
+    1,
+    Math.round(Number(settings.sound.regionWidth) || 1)
+  );
+
+  ctx.save();
+  for (let start = 0, index = 0; start < settings.rows; start += regionWidth) {
+    const end = Math.min(settings.rows, start + regionWidth);
+    const y = top + start * settings.cellSize;
+    const height = (end - start) * settings.cellSize;
+    ctx.fillStyle = rulerConfig.bandColors[index % rulerConfig.bandColors.length];
+    ctx.fillRect(left, y, rulerConfig.bandWidth, height);
+    if (start > 0) {
+      ctx.fillStyle = rulerConfig.bandEdgeColor;
+      ctx.fillRect(left, y, rulerConfig.bandWidth, 1);
+    }
+    index += 1;
+  }
+  ctx.restore();
+}
+
 function drawPitchRuler() {
   if (typeof SoundMapping === "undefined" || !SoundMapping.getPitchMarkers) return;
 
   const { offsetX, offsetY } = getFieldOrigin();
   const fieldHeight = settings.rows * settings.cellSize;
-  const axisX = Math.round(offsetX - 8) + 0.5;
+  const bandLeft = offsetX - 4 - rulerConfig.bandWidth;
+  const axisX = Math.round(bandLeft - 6) + 0.5;
   const tickStart = axisX - 10;
   const labelRight = tickStart - 4;
   // Pitch is sampled at row centres, so the scale spans the first to the last one.
   const span = Math.max(0, settings.rows - 1) * settings.cellSize;
   const rowY = (t) => Math.round(offsetY + settings.cellSize / 2 + t * span) + 0.5;
+
+  drawRegionBands(bandLeft, offsetY);
 
   ctx.save();
   ctx.lineWidth = 1;
