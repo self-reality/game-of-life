@@ -36,6 +36,14 @@ bottom edge of the field:
 There is no search for a clear corridor: the column is random and the spawn always
 succeeds. When `wrapHorizontal` is on the column may straddle the seam.
 
+### Clicking the field
+
+Clicking a cell in the browser stamps one ship there by hand: the same random
+type as an automatic spawn, plus a random quarter turn, so it can head up, down,
+left, or right (gliders diagonally). The ship is centred on the clicked cell and
+pushed back inside the field if it would hang over a wall; on a wrapped field it
+may straddle the seam. Clicks in the margin or the pitch ruler are ignored.
+
 ## Precompute export
 
 Generate a precomputed simulation export:

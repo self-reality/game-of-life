@@ -374,6 +374,34 @@ function drawPitchRuler() {
   ctx.restore();
 }
 
+// Clicking the field drops in a ship: random type, random direction.
+function getCellFromPointer(event) {
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  const { offsetX, offsetY } = getFieldOrigin();
+  const canvasX = (event.clientX - rect.left) * (canvas.width / rect.width);
+  const canvasY = (event.clientY - rect.top) * (canvas.height / rect.height);
+  const x = Math.floor((canvasX - offsetX) / settings.cellSize);
+  const y = Math.floor((canvasY - offsetY) / settings.cellSize);
+  if (x < 0 || x >= settings.cols || y < 0 || y >= settings.rows) return null;
+  return { x, y };
+}
+
+function handleFieldPointerDown(event) {
+  const cell = getCellFromPointer(event);
+  if (!cell) return;
+  const spawned = SimulationCore.spawnShipAt(
+    simulation,
+    settings,
+    cell.x,
+    cell.y,
+    Math.random
+  );
+  if (!spawned) return;
+  syncSimulationBuffers();
+  needsRender = true;
+}
+
 function updateStatus(p) {
   statusDensity.textContent = p.toFixed(3);
 }
@@ -413,6 +441,7 @@ function applySettings() {
 }
 
 function bindControls() {
+  canvas.addEventListener("pointerdown", handleFieldPointerDown);
   bindPair("colsRange", "colsNumber", (value) => {
     settings.cols = Math.max(10, value);
     applySettings();

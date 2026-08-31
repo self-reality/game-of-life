@@ -187,6 +187,18 @@
     return upwardShips[names[Math.floor(rng() * names.length)]];
   }
 
+  // Ships are stored facing up, so a random quarter turn is all it takes to aim
+  // one in any of the four directions.
+  function rotatePattern(pattern, quarterTurns) {
+    const turns = ((quarterTurns % 4) + 4) % 4;
+    let rotated = pattern.map(([x, y]) => [x, y]);
+    for (let i = 0; i < turns; i += 1) {
+      rotated = rotated.map(([x, y]) => [-y, x]);
+    }
+    const bounds = getBounds(rotated);
+    return rotated.map(([x, y]) => [x - bounds.minX, y - bounds.minY]);
+  }
+
   function clearFootprint(state, settings, width, height, posX, posY) {
     const { cols, rows } = settings;
     const wrap = wrapsX(settings);
@@ -241,6 +253,27 @@
     placePattern(state, settings, ship, posX, posY);
   }
 
+  // Drops a random ship, pointed in a random direction, centred on a cell.
+  function spawnShipAt(state, settings, cellX, cellY, rng = Math.random) {
+    const { cols, rows } = settings;
+    if (cellX < 0 || cellX >= cols || cellY < 0 || cellY >= rows) return false;
+
+    const ship = rotatePattern(pickUpwardShip(rng), Math.floor(rng() * 4));
+    const bounds = getBounds(ship);
+    const width = bounds.maxX + 1;
+    const height = bounds.maxY + 1;
+    const wrap = wrapsX(settings);
+    if (height > rows || (!wrap && width > cols)) return false;
+
+    const posY = Math.max(0, Math.min(cellY - (height >> 1), rows - height));
+    const rawX = cellX - (width >> 1);
+    const posX = wrap ? wrapX(rawX, cols) : Math.max(0, Math.min(rawX, cols - width));
+
+    clearFootprint(state, settings, width, height, posX, posY);
+    placePattern(state, settings, ship, posX, posY);
+    return true;
+  }
+
   function injectIfNeeded(state, settings, rng) {
     if (state.cycleCount % settings.injectionPeriod !== 0) return;
     for (let i = 0; i < settings.injections; i += 1) {
@@ -252,6 +285,7 @@
     createSimulationState,
     resetSimulation,
     stepSimulation,
+    spawnShipAt,
   };
 
   if (typeof module !== "undefined" && module.exports) {
