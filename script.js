@@ -143,9 +143,14 @@ function emitSoundForCycle() {
   return events.length;
 }
 
-function bindPair(rangeId, numberId, onChange) {
+// Every control starts from the value the app is actually using, so the panel
+// never shows a stale number from index.html; the value attributes there are
+// only a fallback for when the script fails to load.
+function bindPair(rangeId, numberId, initial, onChange) {
   const range = document.getElementById(rangeId);
   const number = document.getElementById(numberId);
+  range.value = initial;
+  number.value = initial;
 
   const apply = (value) => {
     range.value = value;
@@ -158,16 +163,18 @@ function bindPair(rangeId, numberId, onChange) {
   number.addEventListener("input", () => apply(number.value));
 }
 
-function bindColor(id, onChange) {
+function bindColor(id, initial, onChange) {
   const input = document.getElementById(id);
+  input.value = initial;
   input.addEventListener("input", () => {
     onChange(input.value);
     needsRender = true;
   });
 }
 
-function bindSelect(id, onChange) {
+function bindSelect(id, initial, onChange) {
   const select = document.getElementById(id);
+  select.value = initial;
   select.addEventListener("change", () => {
     onChange(select.value);
     needsRender = true;
@@ -475,74 +482,74 @@ function applySettings() {
 
 function bindControls() {
   canvas.addEventListener("pointerdown", handleFieldPointerDown);
-  bindPair("colsRange", "colsNumber", (value) => {
+  bindPair("colsRange", "colsNumber", settings.cols, (value) => {
     settings.cols = Math.max(10, value);
     applySettings();
   });
-  bindPair("rowsRange", "rowsNumber", (value) => {
+  bindPair("rowsRange", "rowsNumber", settings.rows, (value) => {
     settings.rows = Math.max(10, value);
     applySettings();
   });
-  bindSelect("horizontalEdges", (value) => {
+  bindSelect("horizontalEdges", settings.wrapHorizontal ? "wrap" : "wall", (value) => {
     settings.wrapHorizontal = value === "wrap";
   });
-  bindPair("cellSizeRange", "cellSizeNumber", (value) => {
+  bindPair("cellSizeRange", "cellSizeNumber", settings.cellSize, (value) => {
     settings.cellSize = Math.max(1, value);
     applySettings();
   });
-  bindPair("speedRange", "speedNumber", (value) => {
+  bindPair("speedRange", "speedNumber", settings.speed, (value) => {
     settings.speed = Math.max(1, value);
   });
-  bindPair("marginRange", "marginNumber", (value) => {
+  bindPair("marginRange", "marginNumber", settings.margin, (value) => {
     settings.margin = Math.max(0, value);
     applySettings();
   });
-  bindPair("gridThicknessRange", "gridThicknessNumber", (value) => {
+  bindPair("gridThicknessRange", "gridThicknessNumber", settings.gridThickness, (value) => {
     settings.gridThickness = Math.max(0.5, value);
   });
-  bindPair("glowBlurRange", "glowBlurNumber", (value) => {
+  bindPair("glowBlurRange", "glowBlurNumber", glowConfig.blur, (value) => {
     glowConfig.blur = Math.max(0, value);
   });
-  bindPair("glowAlphaRange", "glowAlphaNumber", (value) => {
+  bindPair("glowAlphaRange", "glowAlphaNumber", glowConfig.alpha, (value) => {
     glowConfig.alpha = Math.max(0, Math.min(1, value));
   });
-  bindSelect("glowBlendMode", (value) => {
+  bindSelect("glowBlendMode", glowConfig.blendMode, (value) => {
     glowConfig.blendMode = value;
   });
-  bindPair("injectionsRange", "injectionsNumber", (value) => {
+  bindPair("injectionsRange", "injectionsNumber", settings.injections, (value) => {
     settings.injections = Math.max(1, value);
   });
-  bindPair("injectionPeriodRange", "injectionPeriodNumber", (value) => {
+  bindPair("injectionPeriodRange", "injectionPeriodNumber", settings.injectionPeriod, (value) => {
     settings.injectionPeriod = Math.max(1, value);
   });
-  bindPair("soundMaxVoicesRange", "soundMaxVoicesNumber", (value) => {
+  bindPair("soundMaxVoicesRange", "soundMaxVoicesNumber", settings.sound.maxVoicesPerRegion, (value) => {
     settings.sound.maxVoicesPerRegion = Math.max(1, value);
   });
-  bindPair("soundRegionWidthRange", "soundRegionWidthNumber", (value) => {
+  bindPair("soundRegionWidthRange", "soundRegionWidthNumber", settings.sound.regionWidth, (value) => {
     settings.sound.regionWidth = Math.max(1, value);
   });
-  bindPair("soundOctavesRange", "soundOctavesNumber", (value) => {
+  bindPair("soundOctavesRange", "soundOctavesNumber", settings.sound.numOctaves, (value) => {
     settings.sound.numOctaves = Math.max(1, value);
   });
-  bindPair("soundCenterOctaveRange", "soundCenterOctaveNumber", (value) => {
+  bindPair("soundCenterOctaveRange", "soundCenterOctaveNumber", settings.sound.centerOctave, (value) => {
     settings.sound.centerOctave = Math.round(value);
   });
-  bindPair("soundStartRandomRange", "soundStartRandomNumber", (value) => {
+  bindPair("soundStartRandomRange", "soundStartRandomNumber", settings.sound.noteStartRandomMs, (value) => {
     settings.sound.noteStartRandomMs = Math.max(0, value);
   });
-  bindColor("bgColor", (value) => {
+  bindColor("bgColor", settings.bgColor, (value) => {
     settings.bgColor = value;
   });
-  bindColor("gridColor", (value) => {
+  bindColor("gridColor", settings.gridColor, (value) => {
     settings.gridColor = value;
   });
-  bindColor("alive1Color", (value) => {
+  bindColor("alive1Color", settings.alive1Color, (value) => {
     settings.alive1Color = value;
   });
-  bindColor("alive2Color", (value) => {
+  bindColor("alive2Color", settings.alive2Color, (value) => {
     settings.alive2Color = value;
   });
-  bindColor("alive10Color", (value) => {
+  bindColor("alive10Color", settings.alive10Color, (value) => {
     settings.alive10Color = value;
   });
 }
