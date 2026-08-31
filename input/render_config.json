@@ -20,10 +20,6 @@
     "alive10Color": "#2f7cff",
     "injections": 2,
     "injectionPeriod": 80,
-    "corridorMaxSteps": 120,
-    "corridorMinLength": 40,
-    "corridorAttempts": 24,
-    "corridorEdgeAttempts": 8,
     "initialAliveProbability": 0.25
   },
   "glow": {

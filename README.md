@@ -18,25 +18,23 @@ would otherwise count the same neighbour twice).
 
 Wrapping removes two of the four edges that used to destroy ships, so spaceships
 survive much longer and keep circling until something collides with them. An
-lwss laps a 248-column field every 496 cycles.
+lwss laps a 248-column field every 496 cycles. Ships spawn at the bottom and
+travel upward, so the top wall is what eventually retires them.
 
-## Injection (corridor) method
+## Ship spawning
 
-When `injectionPeriod` is reached, the simulator attempts to inject a small
-ship pattern by finding a clear corridor from an edge:
+Every `injectionPeriod` cycles the simulator stamps `injections` ships onto the
+bottom edge of the field:
 
-- Pick a ship pattern and random rotation (glider, lightweight spaceship (lwss), middleweight spaceship (mwss), heavyweight spaceship (hwss)).
-- Simulate the pattern for up to `corridorMaxSteps` to estimate its travel
-  direction and step-by-step footprint.
-- Determine which edges are sensible entry points based on the direction, then
-  try random entry positions along those edges. Ships still enter at the left or
-  right column so they appear at the frame edge; when wrapping is on, top and
-  bottom entries may straddle the seam.
-- For each attempt, measure how many steps stay clear of existing live cells.
-  Corridors and placements wrap horizontally when `wrapHorizontal` is on.
-  Keep the best placement and require at least `corridorMinLength` steps.
-- If a valid corridor is found, place the pattern at the entry position and
-  repeat until `injections` are placed or no corridor can be found.
+- Pick a ship at random: 20% of the time a glider (up-left or up-right), otherwise
+  a lightweight, middleweight, or heavyweight spaceship (lwss/mwss/hwss).
+- All ships are stored pre-oriented to travel upward, so there is no rotation or
+  direction inference.
+- Pick a random column, flush the ship against the bottom row, clear its footprint
+  plus a one-cell border so it is born intact, and stamp it in.
+
+There is no search for a clear corridor: the column is random and the spawn always
+succeeds. When `wrapHorizontal` is on the column may straddle the seam.
 
 ## Precompute export
 
