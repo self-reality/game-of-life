@@ -4,9 +4,23 @@
   const AUDIBLE_MIN_MIDI = 12;
   const AUDIBLE_MAX_MIDI = 120;
 
+  const WAVEFORMS = ["sine", "triangle", "square", "sawtooth"];
+  const MAX_REGIONS = 8;
+  // Envelope defaults are written as multiples of one simulation cycle, so a
+  // fallback is only needed when nobody passes the current cycle length in.
+  const DEFAULT_CYCLE_MS = 1000 / 18;
+
   function randomBetween(min, max, rng) {
     const rand = typeof rng === "function" ? rng : Math.random;
     return min + (max - min) * rand();
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
   }
 
   function midiToNoteName(midi) {
@@ -82,35 +96,128 @@
     return minMidi + t * totalSemitones;
   }
 
-  function mapYToAttackMs(y, rows, soundSettings) {
-    const safeRows = Math.max(1, rows);
-    const t = safeRows === 1 ? 0 : y / (safeRows - 1);
-    const minAttackMs = 1;
-    const maxAttackMs = 2.67;
-    return minAttackMs + t * (maxAttackMs - minAttackMs);
-  }
-
   function mapToStartMs(soundSettings, rng) {
     const span = Math.max(0, Number(soundSettings.noteStartRandomMs) || 0);
     return span === 0 ? 0 : randomBetween(0, span, rng);
   }
 
-  function limitRegionVoices(activeRows, soundSettings, rng) {
-    const regionWidth = Math.max(1, Number(soundSettings.regionWidth) || 1);
-    const maxVoices = Math.max(1, Number(soundSettings.maxVoicesPerRegion) || 1);
+  // Regions are horizontal bands of rows, numbered from the top of the field
+  // down. Row 0 is the bottom of the pitch range, so region 0 is the bass band.
+  function getRegionCount(soundSettings) {
+    const raw = Math.round(Number(soundSettings && soundSettings.regionCount) || 1);
+    return clamp(raw, 1, MAX_REGIONS);
+  }
+
+  function getRegionBounds(rows, regionCount) {
+    const totalRows = Math.max(1, Math.round(rows) || 1);
+    const count = clamp(Math.round(regionCount) || 1, 1, Math.min(MAX_REGIONS, totalRows));
+    const bounds = [];
+    for (let index = 0; index < count; index += 1) {
+      bounds.push({
+        index,
+        startRow: Math.floor((index * totalRows) / count),
+        endRow: Math.floor(((index + 1) * totalRows) / count),
+      });
+    }
+    return bounds;
+  }
+
+  function getRegionIndexForRow(y, rows, regionCount) {
+    const totalRows = Math.max(1, Math.round(rows) || 1);
+    const count = clamp(Math.round(regionCount) || 1, 1, Math.min(MAX_REGIONS, totalRows));
+    return clamp(Math.floor((y * count) / totalRows), 0, count - 1);
+  }
+
+  function getRegionMidiRange(index, rows, soundSettings) {
+    const bounds = getRegionBounds(rows, getRegionCount(soundSettings));
+    const band = bounds[clamp(index, 0, bounds.length - 1)];
+    if (!band) return null;
+    return {
+      minMidi: mapYToMidi(band.startRow, rows, soundSettings),
+      maxMidi: mapYToMidi(Math.max(band.startRow, band.endRow - 1), rows, soundSettings),
+    };
+  }
+
+  // Defaults are tuned so a note is long enough to read as a pitch (research puts
+  // stream segregation well above a 40 ms tone) yet clears before its own band
+  // fires again. Everything scales with the cycle, and the register decides the
+  // rest: bass bands get a slower attack, a longer tail and few voices, treble
+  // bands get short quiet ticks that can afford to be dense.
+  function createRegionDefaults(index, regionCount, cyclePeriodMs) {
+    const count = clamp(Math.round(regionCount) || 1, 1, MAX_REGIONS);
+    const cycle = Math.max(1, Number(cyclePeriodMs) || DEFAULT_CYCLE_MS);
+    const safeIndex = clamp(Math.round(index) || 0, 0, count - 1);
+    // t: 0 at the bass band, 1 at the treble band.
+    const t = count === 1 ? 0.5 : (safeIndex + 0.5) / count;
+    // Bands are staggered across the cycle so their onsets do not fuse.
+    const spread = count === 1 ? 0 : safeIndex / (count - 1);
+
+    return {
+      // Triangle keeps the low end audible on small speakers without the extra
+      // harmonics that make a cluster muddy; sine keeps the top from getting harsh.
+      waveform: t < 0.5 ? "triangle" : "sine",
+      attackMs: Math.round(lerp(16, 4, t)),
+      decayMs: Math.round(lerp(1.8, 0.6, t) * cycle),
+      sustain: Math.round(lerp(0.15, 0, t) * 100) / 100,
+      releaseMs: Math.round(lerp(1.5, 0.6, t) * cycle),
+      delayMs: Math.round(spread * 0.6 * cycle),
+      volumeDb: Math.round(lerp(-10, -19, t) * 2) / 2,
+      maxVoices: Math.max(1, Math.round(lerp(2, 5, t))),
+    };
+  }
+
+  function createRegions(regionCount, cyclePeriodMs) {
+    const count = clamp(Math.round(regionCount) || 1, 1, MAX_REGIONS);
+    const regions = [];
+    for (let index = 0; index < count; index += 1) {
+      regions.push(createRegionDefaults(index, count, cyclePeriodMs));
+    }
+    return regions;
+  }
+
+  function normalizeRegion(region, index, regionCount, cyclePeriodMs) {
+    const defaults = createRegionDefaults(index, regionCount, cyclePeriodMs);
+    if (!region) return defaults;
+    return {
+      waveform: WAVEFORMS.includes(region.waveform) ? region.waveform : defaults.waveform,
+      attackMs: clamp(Number(region.attackMs) || 0, 0, 2000),
+      decayMs: clamp(Number(region.decayMs) || 0, 0, 4000),
+      sustain: clamp(Number(region.sustain) || 0, 0, 1),
+      releaseMs: clamp(Number(region.releaseMs) || 0, 0, 4000),
+      delayMs: clamp(Number(region.delayMs) || 0, 0, 2000),
+      volumeDb: clamp(Number(region.volumeDb) || 0, -60, 6),
+      maxVoices: clamp(Math.round(Number(region.maxVoices) || 1), 1, 24),
+    };
+  }
+
+  function getRegionConfigs(soundSettings, cyclePeriodMs) {
+    const count = getRegionCount(soundSettings);
+    const stored = Array.isArray(soundSettings && soundSettings.regions)
+      ? soundSettings.regions
+      : [];
+    const configs = [];
+    for (let index = 0; index < count; index += 1) {
+      configs.push(normalizeRegion(stored[index], index, count, cyclePeriodMs));
+    }
+    return configs;
+  }
+
+  function limitRegionVoices(activeRows, rows, regionConfigs, rng) {
+    const count = Math.max(1, regionConfigs.length);
     const regionMap = new Map();
 
     activeRows.forEach((y) => {
-      const regionIndex = Math.floor(y / regionWidth);
+      const regionIndex = getRegionIndexForRow(y, rows, count);
       if (!regionMap.has(regionIndex)) regionMap.set(regionIndex, []);
       regionMap.get(regionIndex).push(y);
     });
 
     const selected = [];
-    regionMap.forEach((ys) => {
+    regionMap.forEach((ys, regionIndex) => {
+      const maxVoices = Math.max(1, regionConfigs[regionIndex].maxVoices);
       ys.sort((a, b) => a - b);
       if (ys.length <= maxVoices) {
-        selected.push(...ys);
+        ys.forEach((y) => selected.push({ y, regionIndex }));
         return;
       }
       const shuffled = ys.slice();
@@ -118,11 +225,13 @@
         const j = Math.floor(randomBetween(0, i + 1, rng));
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
-      const picked = shuffled.slice(0, maxVoices).sort((a, b) => a - b);
-      selected.push(...picked);
+      shuffled
+        .slice(0, maxVoices)
+        .sort((a, b) => a - b)
+        .forEach((y) => selected.push({ y, regionIndex }));
     });
 
-    return selected.sort((a, b) => a - b);
+    return selected.sort((a, b) => a.y - b.y);
   }
 
   function getNoteEventsForCycle({
@@ -132,6 +241,7 @@
     cols,
     rows,
     soundSettings,
+    cyclePeriodMs,
     rng,
   }) {
     if (!soundSettings || cols <= 0 || rows <= 0) return [];
@@ -144,23 +254,35 @@
     });
     if (activeRows.size === 0) return [];
 
-    const limitedRows = limitRegionVoices(activeRows, soundSettings, rng);
-    return limitedRows.map((y) => {
+    const regionConfigs = getRegionConfigs(soundSettings, cyclePeriodMs);
+    const limited = limitRegionVoices(activeRows, rows, regionConfigs, rng);
+    return limited.map(({ y, regionIndex }) => {
       const midi = mapYToMidi(y, rows, soundSettings);
       return {
         y,
         midi,
+        regionIndex,
         note: midiToNoteName(midi),
-        attackMs: mapYToAttackMs(y, rows, soundSettings),
-        startMs: mapToStartMs(soundSettings, rng),
+        // A band's fixed offset plus a per-note jitter: simultaneous onsets fuse
+        // into one blurred event, staggered ones stay separately audible.
+        startMs: regionConfigs[regionIndex].delayMs + mapToStartMs(soundSettings, rng),
       };
     });
   }
 
   const api = {
+    MAX_REGIONS,
+    WAVEFORMS,
+    createRegionDefaults,
+    createRegions,
     getNoteEventsForCycle,
-    getPitchRange,
     getPitchMarkers,
+    getPitchRange,
+    getRegionBounds,
+    getRegionConfigs,
+    getRegionCount,
+    getRegionIndexForRow,
+    getRegionMidiRange,
     isAudibleMidi,
     midiToNoteName,
   };

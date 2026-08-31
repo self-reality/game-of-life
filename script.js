@@ -22,11 +22,13 @@ const settings = {
   initialAliveProbability: 0.25,
   wrapHorizontal: true,
   sound: {
-    maxVoicesPerRegion: 4,
-    regionWidth: 24,
+    regionCount: 4,
     numOctaves: 4,
     centerOctave: 0,
     noteStartRandomMs: 6,
+    // Filled in from the cycle length once SoundMapping is up; one entry per
+    // voice region, bass band first.
+    regions: [],
   },
 };
 
@@ -67,6 +69,12 @@ const soundState = {
 const soundGestures = ["pointerdown", "keydown", "touchstart"];
 const soundHint = document.getElementById("soundHint");
 
+// One simulation cycle in milliseconds: the unit every envelope default is
+// expressed in, so the sound stays readable when the speed changes.
+function getCyclePeriodMs() {
+  return 1000 / Math.max(1, settings.speed);
+}
+
 function canUseSound() {
   return (
     typeof SoundMapping !== "undefined" &&
@@ -77,7 +85,7 @@ function canUseSound() {
 
 function initSoundEngine() {
   if (!canUseSound() || soundState.drift) return;
-  soundState.drift = new DriftEmulator();
+  soundState.drift = new DriftEmulator(settings.sound.regions);
 }
 
 function setSoundHint(text, isOn) {
@@ -123,20 +131,23 @@ function enableSound() {
 // Plays this cycle's notes and returns how many were started together.
 function emitSoundForCycle() {
   if (!soundState.enabled || !soundState.drift || !canUseSound()) return 0;
+  const cyclePeriodMs = getCyclePeriodMs();
   const events = SoundMapping.getNoteEventsForCycle({
     cells,
     ages,
     cols: settings.cols,
     rows: settings.rows,
     soundSettings: settings.sound,
+    cyclePeriodMs,
     rng: Math.random,
   });
-  const noteDuration = Math.max(0.02, 1 / settings.speed);
+  // The gate lasts one cycle; the region's release is what rings on past it.
+  const noteDuration = Math.max(0.02, cyclePeriodMs / 1000);
   events.forEach((event) => {
     soundState.drift.playNote(
+      event.regionIndex,
       event.note,
       noteDuration,
-      event.attackMs,
       event.startMs
     );
   });
@@ -179,6 +190,127 @@ function bindSelect(id, initial, onChange) {
     onChange(select.value);
     needsRender = true;
   });
+}
+
+// Each voice region gets its own row of controls. Waveform sits in the card
+// header; the rest is a compact grid of numbers, since eight sliders per region
+// would not fit the panel.
+const REGION_FIELDS = [
+  { key: "attackMs", label: "A ms", min: 0, max: 2000, step: 1 },
+  { key: "decayMs", label: "D ms", min: 0, max: 4000, step: 1 },
+  { key: "sustain", label: "S", min: 0, max: 1, step: 0.01 },
+  { key: "releaseMs", label: "R ms", min: 0, max: 4000, step: 1 },
+  { key: "delayMs", label: "Delay", min: 0, max: 2000, step: 1 },
+  { key: "volumeDb", label: "Vol dB", min: -60, max: 6, step: 0.5 },
+  { key: "maxVoices", label: "Voices", min: 1, max: 24, step: 1 },
+];
+
+const regionList = document.getElementById("soundRegions");
+
+// Re-reads the region cards into settings and hands them to the synth bank.
+function applyRegionSettings() {
+  if (typeof SoundMapping === "undefined") return;
+  settings.sound.regions = SoundMapping.getRegionConfigs(
+    settings.sound,
+    getCyclePeriodMs()
+  );
+  if (soundState.drift) soundState.drift.setRegions(settings.sound.regions);
+}
+
+function updateRegionRanges() {
+  if (!regionList || typeof SoundMapping === "undefined") return;
+  regionList.querySelectorAll(".region-range").forEach((node, index) => {
+    const range = SoundMapping.getRegionMidiRange(
+      index,
+      settings.rows,
+      settings.sound
+    );
+    // An arrow, not a dash: octave numbers here can be negative.
+    node.textContent = range
+      ? `${SoundMapping.midiToNoteName(range.minMidi)} \u2192 ${SoundMapping.midiToNoteName(
+          range.maxMidi
+        )}`
+      : "";
+  });
+}
+
+function createRegionField(index, field) {
+  const label = document.createElement("label");
+  label.className = "region-field";
+  label.append(field.label);
+
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = field.min;
+  input.max = field.max;
+  input.step = field.step;
+  input.value = settings.sound.regions[index][field.key];
+  input.addEventListener("input", () => {
+    const value = Number(input.value);
+    if (input.value === "" || !Number.isFinite(value)) return;
+    settings.sound.regions[index][field.key] = value;
+    applyRegionSettings();
+  });
+
+  label.appendChild(input);
+  return label;
+}
+
+function createRegionCard(index) {
+  const card = document.createElement("div");
+  card.className = "region-card";
+
+  const head = document.createElement("div");
+  head.className = "region-head";
+
+  const tag = document.createElement("span");
+  tag.className = "region-tag";
+  tag.textContent = `R${index + 1}`;
+
+  const range = document.createElement("span");
+  range.className = "region-range";
+
+  const wave = document.createElement("select");
+  SoundMapping.WAVEFORMS.forEach((type) => {
+    const option = document.createElement("option");
+    option.value = type;
+    option.textContent = type;
+    wave.appendChild(option);
+  });
+  wave.value = settings.sound.regions[index].waveform;
+  wave.addEventListener("change", () => {
+    settings.sound.regions[index].waveform = wave.value;
+    applyRegionSettings();
+  });
+
+  head.append(tag, range, wave);
+
+  const grid = document.createElement("div");
+  grid.className = "region-grid";
+  REGION_FIELDS.forEach((field) => grid.appendChild(createRegionField(index, field)));
+
+  card.append(head, grid);
+  return card;
+}
+
+function renderRegionControls() {
+  if (!regionList || typeof SoundMapping === "undefined") return;
+  regionList.textContent = "";
+  settings.sound.regions.forEach((_, index) => {
+    regionList.appendChild(createRegionCard(index));
+  });
+  updateRegionRanges();
+}
+
+// Puts every region back on defaults derived from the current cycle length.
+function resetRegionsToCycle() {
+  if (typeof SoundMapping === "undefined") return;
+  settings.sound.regions = SoundMapping.createRegions(
+    settings.sound.regionCount,
+    getCyclePeriodMs()
+  );
+  applyRegionSettings();
+  renderRegionControls();
 }
 
 function getFieldOrigin() {
@@ -313,27 +445,25 @@ function drawGlowOverlay() {
   ctx.restore();
 }
 
-// Voices are capped per region, and a region is a band of rows, so the strip
-// between the axis and the field shows where one band ends and the next begins.
+// Each voice region owns its own synth and voice budget, so the strip between
+// the axis and the field shows where one band ends and the next begins.
 function drawRegionBands(left, top) {
-  const regionWidth = Math.max(
-    1,
-    Math.round(Number(settings.sound.regionWidth) || 1)
+  const bounds = SoundMapping.getRegionBounds(
+    settings.rows,
+    SoundMapping.getRegionCount(settings.sound)
   );
 
   ctx.save();
-  for (let start = 0, index = 0; start < settings.rows; start += regionWidth) {
-    const end = Math.min(settings.rows, start + regionWidth);
-    const y = top + start * settings.cellSize;
-    const height = (end - start) * settings.cellSize;
+  bounds.forEach(({ index, startRow, endRow }) => {
+    const y = top + startRow * settings.cellSize;
+    const height = (endRow - startRow) * settings.cellSize;
     ctx.fillStyle = rulerConfig.bandColors[index % rulerConfig.bandColors.length];
     ctx.fillRect(left, y, rulerConfig.bandWidth, height);
-    if (start > 0) {
+    if (startRow > 0) {
       ctx.fillStyle = rulerConfig.bandEdgeColor;
       ctx.fillRect(left, y, rulerConfig.bandWidth, 1);
     }
-    index += 1;
-  }
+  });
   ctx.restore();
 }
 
@@ -482,6 +612,8 @@ function applySettings() {
 
 function bindControls() {
   canvas.addEventListener("pointerdown", handleFieldPointerDown);
+  const resetRegions = document.getElementById("soundResetRegions");
+  if (resetRegions) resetRegions.addEventListener("click", resetRegionsToCycle);
   bindPair("colsRange", "colsNumber", settings.cols, (value) => {
     settings.cols = Math.max(10, value);
     applySettings();
@@ -489,6 +621,7 @@ function bindControls() {
   bindPair("rowsRange", "rowsNumber", settings.rows, (value) => {
     settings.rows = Math.max(10, value);
     applySettings();
+    updateRegionRanges();
   });
   bindSelect("horizontalEdges", settings.wrapHorizontal ? "wrap" : "wall", (value) => {
     settings.wrapHorizontal = value === "wrap";
@@ -522,17 +655,21 @@ function bindControls() {
   bindPair("injectionPeriodRange", "injectionPeriodNumber", settings.injectionPeriod, (value) => {
     settings.injectionPeriod = Math.max(1, value);
   });
-  bindPair("soundMaxVoicesRange", "soundMaxVoicesNumber", settings.sound.maxVoicesPerRegion, (value) => {
-    settings.sound.maxVoicesPerRegion = Math.max(1, value);
-  });
-  bindPair("soundRegionWidthRange", "soundRegionWidthNumber", settings.sound.regionWidth, (value) => {
-    settings.sound.regionWidth = Math.max(1, value);
+  bindPair("soundRegionCountRange", "soundRegionCountNumber", settings.sound.regionCount, (value) => {
+    settings.sound.regionCount = Math.max(
+      1,
+      Math.min(SoundMapping.MAX_REGIONS, Math.round(value))
+    );
+    applyRegionSettings();
+    renderRegionControls();
   });
   bindPair("soundOctavesRange", "soundOctavesNumber", settings.sound.numOctaves, (value) => {
     settings.sound.numOctaves = Math.max(1, value);
+    updateRegionRanges();
   });
   bindPair("soundCenterOctaveRange", "soundCenterOctaveNumber", settings.sound.centerOctave, (value) => {
     settings.sound.centerOctave = Math.round(value);
+    updateRegionRanges();
   });
   bindPair("soundStartRandomRange", "soundStartRandomNumber", settings.sound.noteStartRandomMs, (value) => {
     settings.sound.noteStartRandomMs = Math.max(0, value);
@@ -555,6 +692,7 @@ function bindControls() {
 }
 
 function start() {
+  resetRegionsToCycle();
   bindControls();
   applySettings();
   if (canUseSound()) {

@@ -2,36 +2,78 @@
   function factory(Tone) {
     if (!Tone) return null;
 
+    // One PolySynth per voice region, so a band's waveform, envelope and level
+    // belong to it alone: changing the bass band cannot retune the treble one.
     return class DriftEmulator {
-      constructor() {
-        this.synth = new Tone.PolySynth(Tone.Synth, {
+      constructor(regionConfigs = []) {
+        // Cycles fire every voice at once, so peaks stack. The limiter is a
+        // safety net against clipping, not a mix tool; per-region levels are
+        // what should keep the sum in range.
+        this.limiter = new Tone.Limiter(-1).toDestination();
+        this.synths = [];
+        this.setRegions(regionConfigs);
+      }
+
+      static toSynthOptions(region) {
+        return {
           oscillator: {
-            type: "sine",
+            type: region.waveform,
             phase: 0,
           },
           envelope: {
-            attack: 0,
+            attack: Math.max(0, region.attackMs) / 1000,
             attackCurve: "linear",
-            decay: 0.0336,
+            decay: Math.max(0.001, region.decayMs / 1000),
             decayCurve: "exponential",
-            sustain: 0,
-            release: 0.507,
+            sustain: Math.max(0, Math.min(1, region.sustain)),
+            release: Math.max(0.001, region.releaseMs / 1000),
+            releaseCurve: "exponential",
           },
-          volume: -6,
-        }).toDestination();
+        };
       }
 
-      playNote(note = "C4", durationSeconds = 0.1, attackMs = 0, startDelayMs = 0) {
-        const attackSeconds = Math.max(0, attackMs) / 1000;
-        const startSeconds = Math.max(0, startDelayMs) / 1000;
-        const time = Tone.now() + startSeconds;
-        this.synth.set({ envelope: { attack: attackSeconds } });
-        this.synth.triggerAttackRelease(note, durationSeconds, time);
+      createSynth(region) {
+        const synth = new Tone.PolySynth(
+          Tone.Synth,
+          DriftEmulator.toSynthOptions(region)
+        );
+        // A band's tail runs a few cycles long, so its voices overlap with the
+        // next cycles' rather than replacing them.
+        synth.maxPolyphony = 32;
+        synth.volume.value = region.volumeDb;
+        synth.connect(this.limiter);
+        return synth;
       }
 
-      setOscillatorType(type) {
-        const types = ["sine", "square", "triangle", "sawtooth"];
-        this.synth.set({ oscillator: { type: types[type - 1] || "triangle" } });
+      setRegions(regionConfigs) {
+        const configs = Array.isArray(regionConfigs) ? regionConfigs : [];
+
+        while (this.synths.length > configs.length) {
+          this.synths.pop().dispose();
+        }
+
+        configs.forEach((region, index) => {
+          if (index >= this.synths.length) {
+            this.synths.push(this.createSynth(region));
+            return;
+          }
+          const synth = this.synths[index];
+          synth.set(DriftEmulator.toSynthOptions(region));
+          synth.volume.value = region.volumeDb;
+        });
+      }
+
+      playNote(regionIndex, note = "C4", durationSeconds = 0.1, startDelayMs = 0) {
+        const synth = this.synths[regionIndex];
+        if (!synth) return;
+        const time = Tone.now() + Math.max(0, startDelayMs) / 1000;
+        synth.triggerAttackRelease(note, durationSeconds, time);
+      }
+
+      dispose() {
+        this.synths.forEach((synth) => synth.dispose());
+        this.synths = [];
+        this.limiter.dispose();
       }
     };
   }

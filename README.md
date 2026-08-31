@@ -48,10 +48,56 @@ may straddle the seam. Clicks in the margin or the pitch ruler are ignored.
 
 The gutter left of the field carries two scales for the sound mapping. Ticks and
 note names mark the octaves the field spans; notes outside C0-C9 are red, since
-they are rumble or a squeak. The strip hugging the field alternates shade every
-`sound.regionWidth` rows, so each block is one voice region: at most
-`sound.maxVoicesPerRegion` of its rows sound on a cycle. The Status panel's
+they are rumble or a squeak. The strip hugging the field alternates shade once
+per voice region, so each block is one band of rows. The Status panel's
 "Sounds at once" counts how many rows actually sounded on the latest cycle.
+
+## Voice regions
+
+Row height maps to pitch, and the field is split into `sound.regionCount`
+horizontal bands (up to 8). Region 1 is the top of the field, which is the
+bottom of the pitch range, so the regions run bass to treble. Each one is its
+own instrument, with its own entry in `sound.regions`:
+
+| Field | Meaning |
+| --- | --- |
+| `waveform` | `sine`, `triangle`, `square` or `sawtooth` |
+| `attackMs`, `decayMs`, `sustain`, `releaseMs` | the band's ADSR envelope; sustain is a level from 0 to 1, the rest are times |
+| `delayMs` | fixed offset from the start of the cycle before the band fires |
+| `volumeDb` | band level |
+| `maxVoices` | how many of the band's rows may sound on one cycle |
+
+A cycle gates every note for exactly one cycle, so a band's own `releaseMs` is
+what rings on past it. Under the hood each region drives a separate
+`Tone.PolySynth`, and the sum runs through a limiter that only catches peaks:
+keeping the mix in range is what the per-region levels are for.
+
+### Why the defaults look the way they do
+
+Every generation fires its notes at once, so a naive setting turns into mud
+within a few cycles. "Reset to cycle" rebuilds all the regions from the current
+speed, and the defaults it writes follow a few rules:
+
+- **Envelopes scale with the cycle.** A tail longer than two or three cycles
+  means a band is still ringing several generations later; the defaults keep a
+  note's whole life at roughly 2.5 cycles.
+- **Notes stay long enough to read as pitch.** Tones segregate into separate
+  streams much better above ~100 ms than at 40 ms, so the tail is trimmed toward
+  that floor, not below it.
+- **The register sets the shape.** Bass bands get a slower attack (a fast one on
+  a low note reads as a thump), a longer tail and few voices, since low clusters
+  mask each other worst. Treble bands get short, quiet ticks and can afford to
+  be dense.
+- **Bands are staggered.** Simultaneous onsets fuse into a single blurred event,
+  so each band's `delayMs` spreads it across the first ~60% of the cycle, and
+  `sound.noteStartRandomMs` jitters individual notes on top of that.
+- **Timbre splits the registers.** Triangle keeps the low end audible on small
+  speakers without the harmonics that muddy a cluster; sine keeps the top from
+  turning harsh.
+
+Changing the speed does not rewrite envelopes you have already tuned - press
+"Reset to cycle" to rescale them. Changing the region count keeps the settings
+of the regions that still exist and gives new ones defaults.
 
 ## Precompute export
 

@@ -159,17 +159,10 @@
         <section class="panel-section">
           <h2>Sound</h2>
           <div class="control">
-            <label for="soundMaxVoicesRange">Max sounds per region</label>
+            <label for="soundRegionCountRange">Voice regions</label>
             <div class="control-row">
-              <input id="soundMaxVoicesRange" type="range" min="1" max="12" step="1" value="4" />
-              <input id="soundMaxVoicesNumber" type="number" min="1" max="12" step="1" value="4" />
-            </div>
-          </div>
-          <div class="control">
-            <label for="soundRegionWidthRange">Region width (cells)</label>
-            <div class="control-row">
-              <input id="soundRegionWidthRange" type="range" min="4" max="120" step="1" value="24" />
-              <input id="soundRegionWidthNumber" type="number" min="4" max="120" step="1" value="24" />
+              <input id="soundRegionCountRange" type="range" min="1" max="8" step="1" value="4" />
+              <input id="soundRegionCountNumber" type="number" min="1" max="8" step="1" value="4" />
             </div>
           </div>
           <div class="control">
@@ -189,9 +182,18 @@
           <div class="control">
             <label for="soundStartRandomRange">Note start randomization (ms)</label>
             <div class="control-row">
-              <input id="soundStartRandomRange" type="range" min="0" max="50" step="1" value="6" />
-              <input id="soundStartRandomNumber" type="number" min="0" max="50" step="1" value="6" />
+              <input id="soundStartRandomRange" type="range" min="0" max="100" step="1" value="6" />
+              <input id="soundStartRandomNumber" type="number" min="0" max="100" step="1" value="6" />
             </div>
+          </div>
+          <div class="control">
+            <div class="control-head">
+              <label>Region voices</label>
+              <button id="soundResetRegions" type="button" class="ghost-button">
+                Reset to cycle
+              </button>
+            </div>
+            <div id="soundRegions" class="region-list"></div>
           </div>
         </section>
         <section class="panel-section">
