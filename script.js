@@ -4,6 +4,7 @@ const glowCanvas = document.createElement("canvas");
 const glowCtx = glowCanvas.getContext("2d");
 
 const statusDensity = document.getElementById("statusDensity");
+const statusSounds = document.getElementById("statusSounds");
 const settings = {
   cols: 248,
   rows: 136,
@@ -119,8 +120,9 @@ function enableSound() {
   );
 }
 
+// Plays this cycle's notes and returns how many were started together.
 function emitSoundForCycle() {
-  if (!soundState.enabled || !soundState.drift || !canUseSound()) return;
+  if (!soundState.enabled || !soundState.drift || !canUseSound()) return 0;
   const events = SoundMapping.getNoteEventsForCycle({
     cells,
     ages,
@@ -129,7 +131,6 @@ function emitSoundForCycle() {
     soundSettings: settings.sound,
     rng: Math.random,
   });
-  if (!events.length) return;
   const noteDuration = Math.max(0.02, 1 / settings.speed);
   events.forEach((event) => {
     soundState.drift.playNote(
@@ -139,6 +140,7 @@ function emitSoundForCycle() {
       event.startMs
     );
   });
+  return events.length;
 }
 
 function bindPair(rangeId, numberId, onChange) {
@@ -208,8 +210,8 @@ function stepSimulation() {
     Math.random
   );
   syncSimulationBuffers();
-  updateStatus(density);
-  emitSoundForCycle();
+  const soundsPlayed = emitSoundForCycle();
+  updateStatus(density, soundsPlayed);
   needsRender = true;
 }
 
@@ -432,8 +434,9 @@ function handleFieldPointerDown(event) {
   needsRender = true;
 }
 
-function updateStatus(p) {
-  statusDensity.textContent = p.toFixed(3);
+function updateStatus(density, soundsPlayed) {
+  statusDensity.textContent = density.toFixed(3);
+  statusSounds.textContent = String(soundsPlayed);
 }
 
 function render() {

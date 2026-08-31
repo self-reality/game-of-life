@@ -50,7 +50,8 @@ The gutter left of the field carries two scales for the sound mapping. Ticks and
 note names mark the octaves the field spans; notes outside C0-C9 are red, since
 they are rumble or a squeak. The strip hugging the field alternates shade every
 `sound.regionWidth` rows, so each block is one voice region: at most
-`sound.maxVoicesPerRegion` of its rows sound on a cycle.
+`sound.maxVoicesPerRegion` of its rows sound on a cycle. The Status panel's
+"Sounds at once" counts how many rows actually sounded on the latest cycle.
 
 ## Precompute export
 
