@@ -15,6 +15,7 @@ body {
 }
 
 .canvas-wrap {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -124,4 +125,25 @@ body {
 .status-item strong {
   font-size: 16px;
   color: #f0f0f0;
+}
+
+.sound-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 12px;
+  border: 1px solid #2a2a2a;
+  border-radius: 999px;
+  background: rgba(13, 13, 13, 0.85);
+  color: #c7c7c7;
+  font-size: 12px;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.sound-hint.is-on {
+  color: #16c172;
+  opacity: 0;
 }

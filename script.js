@@ -54,8 +54,14 @@ const rulerConfig = {
 
 const soundState = {
   enabled: false,
+  pending: false,
   drift: null,
 };
+
+// Browsers keep the audio context suspended until a real user gesture, so the
+// first one anywhere on the page turns the sound on.
+const soundGestures = ["pointerdown", "keydown", "touchstart"];
+const soundHint = document.getElementById("soundHint");
 
 function canUseSound() {
   return (
@@ -70,13 +76,44 @@ function initSoundEngine() {
   soundState.drift = new DriftEmulator();
 }
 
-function enableSound() {
-  if (soundState.enabled) return;
-  initSoundEngine();
-  if (!soundState.drift || typeof Tone === "undefined") return;
-  Tone.start().then(() => {
-    soundState.enabled = true;
+function setSoundHint(text, isOn) {
+  if (!soundHint) return;
+  soundHint.textContent = text;
+  soundHint.classList.toggle("is-on", Boolean(isOn));
+  soundHint.hidden = false;
+}
+
+function listenForSoundGesture(listening) {
+  soundGestures.forEach((type) => {
+    if (listening) {
+      document.addEventListener(type, enableSound);
+    } else {
+      document.removeEventListener(type, enableSound);
+    }
   });
+}
+
+function enableSound() {
+  if (soundState.enabled || soundState.pending) return;
+  initSoundEngine();
+  // Tone may still be missing; keep listening so the next gesture gets another
+  // chance rather than spending the only one on a failed start.
+  if (!soundState.drift || typeof Tone === "undefined") return;
+  soundState.pending = true;
+  Tone.start().then(
+    () => {
+      soundState.enabled = true;
+      soundState.pending = false;
+      listenForSoundGesture(false);
+      setSoundHint("Sound on", true);
+      setTimeout(() => {
+        if (soundHint) soundHint.hidden = true;
+      }, 1500);
+    },
+    () => {
+      soundState.pending = false;
+    }
+  );
 }
 
 function emitSoundForCycle() {
@@ -451,8 +488,12 @@ function bindControls() {
 function start() {
   bindControls();
   applySettings();
-  canvas.addEventListener("pointerdown", enableSound, { once: true });
-  document.addEventListener("keydown", enableSound, { once: true });
+  if (canUseSound()) {
+    listenForSoundGesture(true);
+    setSoundHint("Click anywhere to start sound", false);
+  } else {
+    setSoundHint("Sound unavailable: Tone.js failed to load", false);
+  }
   requestAnimationFrame(tick);
 }
 
