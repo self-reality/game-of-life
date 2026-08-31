@@ -1,5 +1,8 @@
 (() => {
   const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  // C0 (16.35 Hz) to C9 (8372 Hz): outside this a note is rumble or a squeak.
+  const AUDIBLE_MIN_MIDI = 12;
+  const AUDIBLE_MAX_MIDI = 120;
 
   function randomBetween(min, max, rng) {
     const rand = typeof rng === "function" ? rng : Math.random;
@@ -40,16 +43,43 @@
     return active;
   }
 
-  function mapYToMidi(y, rows, soundSettings) {
-    const safeRows = Math.max(1, rows);
-    const t = safeRows === 1 ? 0 : y / (safeRows - 1);
+  function getPitchRange(soundSettings) {
     const octaves = Math.max(1, Number(soundSettings.numOctaves) || 1);
     const centerOctave = Number(soundSettings.centerOctave) || 0;
     const centerMidi = (centerOctave + 1) * 12;
     const totalSemitones = octaves * 12;
-    const minMidi = centerMidi - totalSemitones / 2;
-    const midi = minMidi + t * totalSemitones;
-    return midi;
+    return {
+      minMidi: centerMidi - totalSemitones / 2,
+      maxMidi: centerMidi + totalSemitones / 2,
+      totalSemitones,
+    };
+  }
+
+  function isAudibleMidi(midi) {
+    return midi >= AUDIBLE_MIN_MIDI && midi <= AUDIBLE_MAX_MIDI;
+  }
+
+  // Pitch markers along the Y axis: t is 0 at the top row, 1 at the bottom row.
+  function getPitchMarkers(soundSettings, semitoneStep) {
+    const { minMidi, maxMidi, totalSemitones } = getPitchRange(soundSettings);
+    const step = Math.max(1, Math.round(Number(semitoneStep) || 12));
+    const markers = [];
+    for (let midi = Math.ceil(minMidi / step) * step; midi <= maxMidi; midi += step) {
+      markers.push({
+        midi,
+        note: midiToNoteName(midi),
+        t: totalSemitones === 0 ? 0 : (midi - minMidi) / totalSemitones,
+        audible: isAudibleMidi(midi),
+      });
+    }
+    return markers;
+  }
+
+  function mapYToMidi(y, rows, soundSettings) {
+    const safeRows = Math.max(1, rows);
+    const t = safeRows === 1 ? 0 : y / (safeRows - 1);
+    const { minMidi, totalSemitones } = getPitchRange(soundSettings);
+    return minMidi + t * totalSemitones;
   }
 
   function mapYToAttackMs(y, rows, soundSettings) {
@@ -129,6 +159,9 @@
 
   const api = {
     getNoteEventsForCycle,
+    getPitchRange,
+    getPitchMarkers,
+    isAudibleMidi,
     midiToNoteName,
   };
 

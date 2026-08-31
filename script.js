@@ -16,7 +16,7 @@ const settings = {
   alive1Color: "#ff3b3b",
   alive2Color: "#16c172",
   alive10Color: "#2f7cff",
-  injections: 2,
+  injections: 1,
   injectionPeriod: 80,
   initialAliveProbability: 0.25,
   wrapHorizontal: true,
@@ -42,6 +42,14 @@ const glowConfig = {
   blur: 4,
   alpha: 1,
   blendMode: "lighten",
+};
+
+// Pitch ruler drawn in a gutter to the left of the field, outside the board.
+const rulerConfig = {
+  width: 64,
+  textColor: "#8a8a8a",
+  outOfRangeColor: "#c2544a",
+  fontSize: 10,
 };
 
 const soundState = {
@@ -124,10 +132,17 @@ function bindSelect(id, onChange) {
   });
 }
 
+function getFieldOrigin() {
+  return {
+    offsetX: rulerConfig.width + settings.margin,
+    offsetY: settings.margin,
+  };
+}
+
 function resizeCanvases() {
   const fieldWidth = settings.cols * settings.cellSize;
   const fieldHeight = settings.rows * settings.cellSize;
-  const width = fieldWidth + settings.margin * 2;
+  const width = fieldWidth + settings.margin * 2 + rulerConfig.width;
   const height = fieldHeight + settings.margin * 2;
   canvas.width = width;
   canvas.height = height;
@@ -166,8 +181,7 @@ function drawBackground() {
 function drawGrid() {
   const fieldWidth = settings.cols * settings.cellSize;
   const fieldHeight = settings.rows * settings.cellSize;
-  const offsetX = settings.margin;
-  const offsetY = settings.margin;
+  const { offsetX, offsetY } = getFieldOrigin();
 
   ctx.strokeStyle = settings.gridColor;
   ctx.lineWidth = settings.gridThickness;
@@ -199,8 +213,7 @@ function getCellColor(age) {
 }
 
 function drawCells() {
-  const offsetX = settings.margin;
-  const offsetY = settings.margin;
+  const { offsetX, offsetY } = getFieldOrigin();
 
   for (let y = 0; y < settings.rows; y += 1) {
     const rowOffset = y * settings.cols;
@@ -225,8 +238,7 @@ function drawGlowOverlay() {
   glowCtx.save();
   glowCtx.globalAlpha = 0.9;
 
-  const offsetX = settings.margin;
-  const offsetY = settings.margin;
+  const { offsetX, offsetY } = getFieldOrigin();
   for (let y = 0; y < settings.rows; y += 1) {
     const rowOffset = y * settings.cols;
     for (let x = 0; x < settings.cols; x += 1) {
@@ -252,6 +264,79 @@ function drawGlowOverlay() {
   ctx.restore();
 }
 
+function drawPitchRuler() {
+  if (typeof SoundMapping === "undefined" || !SoundMapping.getPitchMarkers) return;
+
+  const { offsetX, offsetY } = getFieldOrigin();
+  const fieldHeight = settings.rows * settings.cellSize;
+  const axisX = Math.round(offsetX - 8) + 0.5;
+  const tickStart = axisX - 10;
+  const labelRight = tickStart - 4;
+  // Pitch is sampled at row centres, so the scale spans the first to the last one.
+  const span = Math.max(0, settings.rows - 1) * settings.cellSize;
+  const rowY = (t) => Math.round(offsetY + settings.cellSize / 2 + t * span) + 0.5;
+
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = settings.gridColor;
+  ctx.beginPath();
+  ctx.moveTo(axisX, offsetY);
+  ctx.lineTo(axisX, offsetY + fieldHeight);
+  ctx.stroke();
+
+  const semitones = SoundMapping.getPitchMarkers(settings.sound, 1);
+  if (semitones.length > 1 && span / (semitones.length - 1) >= 4) {
+    ctx.beginPath();
+    semitones.forEach((marker) => {
+      const py = rowY(marker.t);
+      ctx.moveTo(axisX - 4, py);
+      ctx.lineTo(axisX, py);
+    });
+    ctx.stroke();
+  }
+
+  ctx.font = `${rulerConfig.fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+
+  const octaves = SoundMapping.getPitchMarkers(settings.sound, 12);
+  const spacing =
+    octaves.length > 1 ? Math.abs(rowY(octaves[1].t) - rowY(octaves[0].t)) : span;
+  const labelStep = Math.max(
+    1,
+    Math.ceil((rulerConfig.fontSize + 3) / Math.max(1, spacing))
+  );
+
+  octaves.forEach((marker, index) => {
+    const py = rowY(marker.t);
+    const color = marker.audible ? rulerConfig.textColor : rulerConfig.outOfRangeColor;
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(tickStart, py);
+    ctx.lineTo(axisX, py);
+    ctx.stroke();
+    if (index % labelStep === 0) {
+      ctx.fillStyle = color;
+      ctx.fillText(marker.note, labelRight, py);
+    }
+  });
+
+  // Label the ends of the span when they do not land on an octave line.
+  const range = SoundMapping.getPitchRange(settings.sound);
+  [
+    { midi: range.minMidi, t: 0 },
+    { midi: range.maxMidi, t: 1 },
+  ].forEach(({ midi, t }) => {
+    if (midi % 12 === 0) return;
+    ctx.fillStyle = SoundMapping.isAudibleMidi(midi)
+      ? rulerConfig.textColor
+      : rulerConfig.outOfRangeColor;
+    ctx.fillText(SoundMapping.midiToNoteName(midi), labelRight, rowY(t));
+  });
+
+  ctx.restore();
+}
+
 function updateStatus(p) {
   statusDensity.textContent = p.toFixed(3);
 }
@@ -261,6 +346,7 @@ function render() {
   drawGrid();
   drawCells();
   drawGlowOverlay();
+  drawPitchRuler();
 }
 
 function tick(timestamp) {
