@@ -1,6 +1,6 @@
 # Game of Life
 
-node render_precomputed.js --config input/render_config.json --input '/Volumes/Smartbuy P5/Media Production/Production Videos/Long/simulation.bin'
+node render_precomputed.js --config input/render_config.json --input '/Volumes/Smartbuy/Media Production/Production Videos/Long/simulation.bin'
 
 ## Motivation
 
@@ -136,7 +136,7 @@ node concat_superchunks.js
 Scan the precomputed export for the paperclip still life (all rotations + reflections):
 
 ```
-node tools/find_paperclip.js --input "/Volumes/Smartbuy P5/Media Production/Production Videos/Long/simulation.bin" --test
+node tools/find_paperclip.js --input "/Volumes/Smartbuy/Media Production/Production Videos/Long/simulation.bin" --test
 ```
 
 The scan follows the export's `wrapHorizontal` header field, so on a wrapped

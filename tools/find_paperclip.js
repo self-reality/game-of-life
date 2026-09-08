@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 const DEFAULT_INPUT =
-  "/Volumes/Smartbuy P5/Media Production/Production Videos/Long/simulation.bin";
+  "/Volumes/Smartbuy/Media Production/Production Videos/Long/simulation.bin";
 const DEFAULT_OUTPUT = path.resolve(__dirname, "paperclip_hits.csv");
 const DEFAULT_RESUME = path.resolve(__dirname, "paperclip_hits.resume.json");
 

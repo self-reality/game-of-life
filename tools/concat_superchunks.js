@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 
-const INPUT_DIR = "/Volumes/Smartbuy P5/Media Production/Production Videos/Long/";
+const INPUT_DIR = "/Volumes/Smartbuy/Media Production/Production Videos/Long/";
 const OUTPUT_FILENAME = "game-of-life.mp4";
 
 function findSuperchunks(dir) {

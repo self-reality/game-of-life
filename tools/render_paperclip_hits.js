@@ -5,7 +5,7 @@ const { spawn } = require("child_process");
 
 const DEFAULT_CONFIG = "input/render_config.json";
 const DEFAULT_INPUT =
-  "/Volumes/Smartbuy P5/Media Production/Production Videos/Long/simulation.bin";
+  "/Volumes/Smartbuy/Media Production/Production Videos/Long/simulation.bin";
 const DEFAULT_CSV = path.resolve(__dirname, "paperclip_hits.csv");
 const DEFAULT_OUTPUT = path.resolve("output/paperclip_cycles");
 
