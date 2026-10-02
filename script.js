@@ -124,12 +124,12 @@ function updateSoundButtons() {
   const available = canUseSound();
   soundButtons.forEach((button) => {
     button.disabled = !available;
-    button.title = available ? "" : "Tone.js failed to load";
+    button.title = I18n.t(available ? "soundShortcut" : "soundUnavailableWhy");
     button.setAttribute("aria-pressed", String(soundState.enabled));
     if (!available) {
-      button.textContent = "Sound unavailable";
+      button.textContent = I18n.t("soundUnavailable");
     } else {
-      button.textContent = soundState.enabled ? "Sound: on" : "Sound: off";
+      button.textContent = I18n.t(soundState.enabled ? "soundOn" : "soundOff");
     }
   });
 }
@@ -525,20 +525,37 @@ function updatePresetButtons() {
   });
 }
 
+// A ratio reads the same in every language; only "This screen" and the
+// tooltips are words.
+function labelPresetButtons() {
+  if (!presetList) return;
+  presetList.querySelectorAll("button").forEach((button) => {
+    if (button.dataset.labelKey) button.textContent = I18n.t(button.dataset.labelKey);
+    button.title = I18n.t("presetCells", {
+      cols: button.dataset.cols,
+      rows: button.dataset.rows,
+    });
+  });
+}
+
 function renderPresetButtons(applyPreset) {
   if (!presetList) return;
-  const presets = [{ label: "This screen", ...getScreenGrid() }, ...RATIO_PRESETS];
+  const presets = [{ labelKey: "thisScreen", ...getScreenGrid() }, ...RATIO_PRESETS];
   presets.forEach((preset) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "ghost-button";
-    button.textContent = preset.label;
-    button.title = `${preset.cols} \u00d7 ${preset.rows} cells`;
+    if (preset.labelKey) {
+      button.dataset.labelKey = preset.labelKey;
+    } else {
+      button.textContent = preset.label;
+    }
     button.dataset.cols = preset.cols;
     button.dataset.rows = preset.rows;
     button.addEventListener("click", () => applyPreset(preset));
     presetList.appendChild(button);
   });
+  labelPresetButtons();
   updatePresetButtons();
 }
 
@@ -923,6 +940,12 @@ function start() {
   applySettings();
   applyStageBackground();
   updateSoundButtons();
+  // Text set from here, not from data-i18n attributes, has to follow the
+  // language by hand.
+  I18n.onChange(() => {
+    updateSoundButtons();
+    labelPresetButtons();
+  });
   requestAnimationFrame(tick);
 }
 

@@ -32,6 +32,28 @@ display.
   switches it off again. Turning it off stops new notes; the ones already
   ringing fade out on their own release.
 
+## Interface languages
+
+The switch in the panel header (flag and language name) offers English, Russian,
+German, French, Italian, Spanish, Portuguese, Chinese, Japanese, Korean, Hindi
+and Arabic. English is the default; the choice is remembered in the browser.
+Arabic mirrors the panel right to left, the field stays as it is.
+
+`index.html` holds the English text and marks what is translatable with
+`data-i18n` attributes (`data-i18n-title` and `data-i18n-aria-label` for
+attributes); `i18n.js` holds one table per language and swaps the text in
+place, so control ids and values do not depend on the language. To add a
+language, add it to `LANGUAGES` and `STRINGS` there and put its flag in
+`flags/`. A key missing from a table falls back to English.
+
+The Sound section is English only on purpose: attack, decay, sustain and the
+waveform names are the terms synths use everywhere. The glow blend modes are
+left as the canvas names for the same reason.
+
+The flags come from [flag-icons](https://github.com/lipis/flag-icons) (MIT, see
+`flags/LICENSE`), except Spain's, which is a plain striped version: the original
+with the coat of arms is 90 KB.
+
 ## Field topology
 
 The left and right edges are stitched together, so the field is a cylinder: a

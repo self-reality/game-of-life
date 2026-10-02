@@ -9,11 +9,20 @@
   <body>
     <main class="app">
       <section class="canvas-wrap">
-        <canvas id="lifeCanvas" aria-label="Game of Life simulation"></canvas>
-        <p class="stage-hint" role="status">Press Esc to exit full screen</p>
+        <canvas id="lifeCanvas" aria-label="Game of Life simulation" data-i18n-aria-label="canvasLabel"></canvas>
+        <p class="stage-hint" role="status" data-i18n="exitHint">Press Esc to exit full screen</p>
       </section>
       <aside class="panel">
-        <h1>Game of Life</h1>
+        <header class="panel-head">
+          <h1 data-i18n="title">Game of Life</h1>
+          <details id="langMenu" class="lang-menu">
+            <summary aria-label="Language" data-i18n-aria-label="language">
+              <img id="langFlag" class="lang-flag" src="flags/gb.svg" alt="" />
+              <span id="langName">English</span>
+            </summary>
+            <div id="langList" class="lang-list"></div>
+          </details>
+        </header>
         <section class="panel-section">
           <div class="action-row">
             <button
@@ -21,6 +30,8 @@
               class="ghost-button"
               data-action="toggle-fullscreen"
               title="Shortcut: F"
+              data-i18n="fullscreen"
+              data-i18n-title="fullscreenShortcut"
             >
               Full screen
             </button>
@@ -35,79 +46,79 @@
             </button>
           </div>
           <div class="control">
-            <label>Screen ratio</label>
+            <label data-i18n="screenRatio">Screen ratio</label>
             <div id="ratioPresets" class="preset-row"></div>
           </div>
         </section>
         <details class="panel-section panel-fold">
-          <summary><h2>Settings</h2></summary>
+          <summary><h2 data-i18n="settings">Settings</h2></summary>
           <div class="control">
-            <label for="colsRange">Field width (cells)</label>
+            <label for="colsRange" data-i18n="fieldWidth">Field width (cells)</label>
             <div class="control-row">
               <input id="colsRange" type="range" min="30" max="320" step="1" value="248" />
               <input id="colsNumber" type="number" min="30" max="320" step="1" value="248" />
             </div>
           </div>
           <div class="control">
-            <label for="rowsRange">Field height (cells)</label>
+            <label for="rowsRange" data-i18n="fieldHeight">Field height (cells)</label>
             <div class="control-row">
               <input id="rowsRange" type="range" min="30" max="220" step="1" value="136" />
               <input id="rowsNumber" type="number" min="30" max="220" step="1" value="136" />
             </div>
           </div>
           <div class="control">
-            <label for="horizontalEdges">Horizontal edges</label>
+            <label for="horizontalEdges" data-i18n="horizontalEdges">Horizontal edges</label>
             <div class="control-row">
               <select id="horizontalEdges">
-                <option value="wrap">Wrap (cylinder)</option>
-                <option value="wall">Wall</option>
+                <option value="wrap" data-i18n="edgesWrap">Wrap (cylinder)</option>
+                <option value="wall" data-i18n="edgesWall">Wall</option>
               </select>
             </div>
           </div>
           <div class="control">
-            <label for="cellSizeRange">Resolution (px per cell)</label>
+            <label for="cellSizeRange" data-i18n="resolution">Resolution (px per cell)</label>
             <div class="control-row">
               <input id="cellSizeRange" type="range" min="3" max="16" step="1" value="6" />
               <input id="cellSizeNumber" type="number" min="3" max="16" step="1" value="6" />
             </div>
           </div>
           <div class="control">
-            <label for="speedRange">Speed (steps/sec)</label>
+            <label for="speedRange" data-i18n="speed">Speed (steps/sec)</label>
             <div class="control-row">
               <input id="speedRange" type="range" min="1" max="60" step="1" value="18" />
               <input id="speedNumber" type="number" min="1" max="60" step="1" value="18" />
             </div>
           </div>
           <div class="control">
-            <label for="marginRange">Grid margin (px)</label>
+            <label for="marginRange" data-i18n="gridMargin">Grid margin (px)</label>
             <div class="control-row">
               <input id="marginRange" type="range" min="0" max="80" step="1" value="24" />
               <input id="marginNumber" type="number" min="0" max="80" step="1" value="24" />
             </div>
           </div>
           <div class="control">
-            <label for="gridThicknessRange">Grid thickness (px)</label>
+            <label for="gridThicknessRange" data-i18n="gridThickness">Grid thickness (px)</label>
             <div class="control-row">
               <input id="gridThicknessRange" type="range" min="0.5" max="2" step="0.5" value="1" />
               <input id="gridThicknessNumber" type="number" min="0.5" max="2" step="0.5" value="1" />
             </div>
           </div>
           <div class="control">
-            <label for="glowBlurRange">Glow blur (px)</label>
+            <label for="glowBlurRange" data-i18n="glowBlur">Glow blur (px)</label>
             <div class="control-row">
               <input id="glowBlurRange" type="range" min="0" max="24" step="1" value="3" />
               <input id="glowBlurNumber" type="number" min="0" max="24" step="1" value="3" />
             </div>
           </div>
           <div class="control">
-            <label for="glowAlphaRange">Glow strength</label>
+            <label for="glowAlphaRange" data-i18n="glowStrength">Glow strength</label>
             <div class="control-row">
               <input id="glowAlphaRange" type="range" min="0" max="1" step="0.05" value="1" />
               <input id="glowAlphaNumber" type="number" min="0" max="1" step="0.05" value="1" />
             </div>
           </div>
           <div class="control">
-            <label for="glowBlendMode">Glow blend mode</label>
+            <label for="glowBlendMode" data-i18n="glowBlend">Glow blend mode</label>
             <div class="control-row">
               <select id="glowBlendMode">
                 <option value="source-over">Source over</option>
@@ -140,49 +151,50 @@
             </div>
           </div>
           <div class="control">
-            <label>Colors</label>
+            <label data-i18n="colors">Colors</label>
             <div class="control-row">
               <div class="color-group">
-                <span>Background</span>
+                <span data-i18n="colorBackground">Background</span>
                 <input id="bgColor" type="color" value="#000000" />
               </div>
               <div class="color-group">
-                <span>Grid</span>
+                <span data-i18n="colorGrid">Grid</span>
                 <input id="gridColor" type="color" value="#2b2b2b" />
               </div>
             </div>
             <div class="control-row">
               <div class="color-group">
-                <span>Alive 1</span>
+                <span data-i18n="colorAlive1">Alive 1</span>
                 <input id="alive1Color" type="color" value="#ff3b3b" />
               </div>
               <div class="color-group">
-                <span>Alive 2+</span>
+                <span data-i18n="colorAlive2">Alive 2+</span>
                 <input id="alive2Color" type="color" value="#16c172" />
               </div>
               <div class="color-group">
-                <span>Alive 10+</span>
+                <span data-i18n="colorAlive10">Alive 10+</span>
                 <input id="alive10Color" type="color" value="#2f7cff" />
               </div>
             </div>
           </div>
           <div class="control">
-            <label for="injectionsRange">Ships per spawn</label>
+            <label for="injectionsRange" data-i18n="shipsPerSpawn">Ships per spawn</label>
             <div class="control-row">
               <input id="injectionsRange" type="range" min="1" max="8" step="1" value="1" />
               <input id="injectionsNumber" type="number" min="1" max="8" step="1" value="1" />
             </div>
           </div>
           <div class="control">
-            <label for="injectionPeriodRange">Spawn period (steps)</label>
+            <label for="injectionPeriodRange" data-i18n="spawnPeriod">Spawn period (steps)</label>
             <div class="control-row">
               <input id="injectionPeriodRange" type="range" min="10" max="300" step="1" value="80" />
               <input id="injectionPeriodNumber" type="number" min="10" max="300" step="1" value="80" />
             </div>
           </div>
         </details>
-        <section class="panel-section">
-          <h2>Sound</h2>
+        <!-- English only: these are the terms synths use everywhere. -->
+        <details class="panel-section panel-fold" lang="en" dir="ltr">
+          <summary><h2>Sound</h2></summary>
           <div class="control">
             <label for="soundRegionCountRange">Voice regions</label>
             <div class="control-row">
@@ -220,16 +232,16 @@
             </div>
             <div id="soundRegions" class="region-list"></div>
           </div>
-        </section>
+        </details>
         <section class="panel-section">
-          <h2>Status</h2>
+          <h2 data-i18n="status">Status</h2>
           <div class="status-grid">
             <div class="status-item">
-              <span>Density p</span>
+              <span data-i18n="density">Density p</span>
               <strong id="statusDensity">0.000</strong>
             </div>
             <div class="status-item">
-              <span>Sounds at once</span>
+              <span data-i18n="soundsAtOnce">Sounds at once</span>
               <strong id="statusSounds">0</strong>
             </div>
           </div>
@@ -240,6 +252,7 @@
     <script src="sound/sound_mapping.js"></script>
     <script src="sound/drift_emulator.js"></script>
     <script src="simulation_core.js"></script>
+    <script src="i18n.js"></script>
     <script src="script.js"></script>
   </body>
 </html>
