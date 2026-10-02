@@ -10,10 +10,42 @@
     <main class="app">
       <section class="canvas-wrap">
         <canvas id="lifeCanvas" aria-label="Game of Life simulation"></canvas>
-        <p id="soundHint" class="sound-hint" role="status" hidden></p>
+        <div class="stage-bar">
+          <button type="button" class="ghost-button" data-action="toggle-sound" aria-pressed="false">
+            Sound: off
+          </button>
+          <button type="button" class="ghost-button" data-action="toggle-fullscreen">
+            Exit full screen
+          </button>
+        </div>
       </section>
       <aside class="panel">
         <h1>Game of Life</h1>
+        <section class="panel-section">
+          <div class="action-row">
+            <button
+              type="button"
+              class="ghost-button"
+              data-action="toggle-fullscreen"
+              title="Shortcut: F"
+            >
+              Full screen
+            </button>
+            <button
+              type="button"
+              class="ghost-button"
+              data-action="toggle-sound"
+              aria-pressed="false"
+              title="Shortcut: M"
+            >
+              Sound: off
+            </button>
+          </div>
+          <div class="control">
+            <label>Screen ratio</label>
+            <div id="ratioPresets" class="preset-row"></div>
+          </div>
+        </section>
         <details class="panel-section panel-fold">
           <summary><h2>Settings</h2></summary>
           <div class="control">

@@ -145,6 +145,38 @@ body {
   border-color: #3d3d3d;
 }
 
+.ghost-button[aria-pressed="true"] {
+  color: #16c172;
+  border-color: #16c172;
+}
+
+.ghost-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.action-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.action-row .ghost-button {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.preset-row .ghost-button {
+  padding: 4px 10px;
+}
+
 .control-row input[type="number"] {
   width: 72px;
   background: #0d0d0d;
@@ -265,23 +297,52 @@ body {
   color: #f0f0f0;
 }
 
-.sound-hint {
+/* Full screen: the field alone, fitted to the display. script.js sizes the
+   canvas; the bars around a field of another ratio take the field background. */
+body.is-fullscreen .panel {
+  display: none;
+}
+
+body.is-fullscreen .canvas-wrap {
+  position: fixed;
+  inset: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--field-bg, #000);
+}
+
+body.is-fullscreen #lifeCanvas {
+  max-width: none;
+  max-height: none;
+  border-radius: 0;
+}
+
+.stage-bar {
   position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  margin: 0;
-  padding: 6px 12px;
-  border: 1px solid #2a2a2a;
-  border-radius: 999px;
-  background: rgba(13, 13, 13, 0.85);
-  color: #c7c7c7;
-  font-size: 12px;
-  pointer-events: none;
+  top: 16px;
+  right: 16px;
+  display: none;
+  gap: 8px;
   transition: opacity 0.4s ease;
 }
 
-.sound-hint.is-on {
-  color: #16c172;
+.stage-bar .ghost-button {
+  padding: 6px 12px;
+  font-size: 12px;
+  background: rgba(13, 13, 13, 0.85);
+}
+
+body.is-fullscreen .stage-bar {
+  display: flex;
+}
+
+/* The pointer and the buttons go away once the pointer rests. */
+body.is-idle .stage-bar:not(:focus-within) {
   opacity: 0;
+  pointer-events: none;
+}
+
+body.is-idle .canvas-wrap,
+body.is-idle #lifeCanvas {
+  cursor: none;
 }

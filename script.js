@@ -2,6 +2,7 @@ const canvas = document.getElementById("lifeCanvas");
 const ctx = canvas.getContext("2d");
 const glowCanvas = document.createElement("canvas");
 const glowCtx = glowCanvas.getContext("2d");
+const stage = canvas.parentElement;
 
 const statusDensity = document.getElementById("statusDensity");
 const statusSounds = document.getElementById("statusSounds");
@@ -58,16 +59,47 @@ const rulerConfig = {
   bandEdgeColor: "#5c5c5c",
 };
 
+// How the canvas is laid out right now. In the window it follows the settings;
+// in full screen the field alone is stretched over the display, so the cell
+// size there is whatever fits and is usually not a whole number of pixels.
+const view = {
+  fullscreen: false,
+  cellSize: settings.cellSize,
+  offsetX: 0,
+  offsetY: 0,
+  // Full-screen cell size relative to the one set in the panel; pixel-sized
+  // settings (glow blur, grid thickness) scale by it to keep the tuned look.
+  scale: 1,
+  // Pixel position of every cell boundary, snapped to whole pixels so cells
+  // stay crisp at a fractional cell size.
+  xEdges: new Int32Array(0),
+  yEdges: new Int32Array(0),
+};
+
+// A 4K or retina display is rendered at no more than this many canvas pixels
+// per CSS pixel: the glow blur costs per pixel.
+const FULLSCREEN_MAX_DPR = 2;
+// How long the pointer rests in full screen before it and the buttons hide.
+const STAGE_IDLE_MS = 2500;
+
+// Monitor shapes. Every preset holds about as many cells as the default field:
+// it changes the ratio, not how busy the screen gets.
+const PRESET_CELL_BUDGET = 32400;
+const RATIO_PRESETS = [
+  { label: "16:9", cols: 240, rows: 135 },
+  { label: "16:10", cols: 224, rows: 140 },
+  { label: "21:9", cols: 280, rows: 118 },
+  { label: "32:9", cols: 320, rows: 90 },
+  { label: "4:3", cols: 208, rows: 156 },
+];
+
 const soundState = {
   enabled: false,
   pending: false,
   drift: null,
 };
 
-// Browsers keep the audio context suspended until a real user gesture, so the
-// first one anywhere on the page turns the sound on.
-const soundGestures = ["pointerdown", "keydown", "touchstart"];
-const soundHint = document.getElementById("soundHint");
+const soundButtons = document.querySelectorAll('[data-action="toggle-sound"]');
 
 // One simulation cycle in milliseconds: the unit every envelope default is
 // expressed in, so the sound stays readable when the speed changes.
@@ -88,39 +120,38 @@ function initSoundEngine() {
   soundState.drift = new DriftEmulator(settings.sound.regions);
 }
 
-function setSoundHint(text, isOn) {
-  if (!soundHint) return;
-  soundHint.textContent = text;
-  soundHint.classList.toggle("is-on", Boolean(isOn));
-  soundHint.hidden = false;
-}
-
-function listenForSoundGesture(listening) {
-  soundGestures.forEach((type) => {
-    if (listening) {
-      document.addEventListener(type, enableSound);
+function updateSoundButtons() {
+  const available = canUseSound();
+  soundButtons.forEach((button) => {
+    button.disabled = !available;
+    button.title = available ? "" : "Tone.js failed to load";
+    button.setAttribute("aria-pressed", String(soundState.enabled));
+    if (!available) {
+      button.textContent = "Sound unavailable";
     } else {
-      document.removeEventListener(type, enableSound);
+      button.textContent = soundState.enabled ? "Sound: on" : "Sound: off";
     }
   });
 }
 
-function enableSound() {
-  if (soundState.enabled || soundState.pending) return;
+// Browsers keep the audio context suspended until a real user gesture; the
+// click on the sound button is that gesture. Turning the sound off only stops
+// new notes, so the ones already ringing fade out on their own release.
+function toggleSound() {
+  if (soundState.pending) return;
+  if (soundState.enabled) {
+    soundState.enabled = false;
+    updateSoundButtons();
+    return;
+  }
   initSoundEngine();
-  // Tone may still be missing; keep listening so the next gesture gets another
-  // chance rather than spending the only one on a failed start.
   if (!soundState.drift || typeof Tone === "undefined") return;
   soundState.pending = true;
   Tone.start().then(
     () => {
       soundState.enabled = true;
       soundState.pending = false;
-      listenForSoundGesture(false);
-      setSoundHint("Sound on", true);
-      setTimeout(() => {
-        if (soundHint) soundHint.hidden = true;
-      }, 1500);
+      updateSoundButtons();
     },
     () => {
       soundState.pending = false;
@@ -172,6 +203,7 @@ function bindPair(rangeId, numberId, initial, onChange) {
 
   range.addEventListener("input", () => apply(range.value));
   number.addEventListener("input", () => apply(number.value));
+  return apply;
 }
 
 function bindColor(id, initial, onChange) {
@@ -313,22 +345,162 @@ function resetRegionsToCycle() {
   renderRegionControls();
 }
 
-function getFieldOrigin() {
-  return {
-    offsetX: rulerConfig.width + settings.margin,
-    offsetY: settings.margin,
-  };
+function buildEdges(count, origin, size) {
+  const edges = new Int32Array(count + 1);
+  for (let i = 0; i <= count; i += 1) {
+    edges[i] = Math.round(origin + i * size);
+  }
+  return edges;
 }
 
 function resizeCanvases() {
-  const fieldWidth = settings.cols * settings.cellSize;
-  const fieldHeight = settings.rows * settings.cellSize;
-  const width = fieldWidth + settings.margin * 2 + rulerConfig.width;
-  const height = fieldHeight + settings.margin * 2;
+  let width;
+  let height;
+  if (view.fullscreen) {
+    // No ruler and no margin: the field is fitted to the display and centred,
+    // and a field of another ratio gets background-coloured bars.
+    const dpr = Math.min(window.devicePixelRatio || 1, FULLSCREEN_MAX_DPR);
+    const availableWidth = Math.max(1, stage.clientWidth * dpr);
+    const availableHeight = Math.max(1, stage.clientHeight * dpr);
+    view.cellSize = Math.min(
+      availableWidth / settings.cols,
+      availableHeight / settings.rows
+    );
+    view.offsetX = 0;
+    view.offsetY = 0;
+    width = Math.round(settings.cols * view.cellSize);
+    height = Math.round(settings.rows * view.cellSize);
+    canvas.style.width = `${width / dpr}px`;
+    canvas.style.height = `${height / dpr}px`;
+  } else {
+    view.cellSize = settings.cellSize;
+    view.offsetX = rulerConfig.width + settings.margin;
+    view.offsetY = settings.margin;
+    width = settings.cols * settings.cellSize + settings.margin * 2 + rulerConfig.width;
+    height = settings.rows * settings.cellSize + settings.margin * 2;
+    canvas.style.width = "";
+    canvas.style.height = "";
+  }
+  view.scale = view.cellSize / settings.cellSize;
+  view.xEdges = buildEdges(settings.cols, view.offsetX, view.cellSize);
+  view.yEdges = buildEdges(settings.rows, view.offsetY, view.cellSize);
   canvas.width = width;
   canvas.height = height;
   glowCanvas.width = width;
   glowCanvas.height = height;
+  needsRender = true;
+}
+
+function getFullscreenElement() {
+  return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+
+let stageIdleTimer = 0;
+
+// Shows the pointer and the full-screen buttons, then hides them again once
+// the pointer has rested.
+function wakeStage() {
+  document.body.classList.remove("is-idle");
+  clearTimeout(stageIdleTimer);
+  if (!view.fullscreen) return;
+  stageIdleTimer = setTimeout(() => {
+    document.body.classList.add("is-idle");
+  }, STAGE_IDLE_MS);
+}
+
+function setFullscreenView(on) {
+  if (view.fullscreen === on) return;
+  view.fullscreen = on;
+  document.body.classList.toggle("is-fullscreen", on);
+  resizeCanvases();
+  wakeStage();
+}
+
+// The page lays the field out over the whole window by itself; the browser's
+// full screen only takes the browser chrome away. So where there is no such
+// API (Safari on an iPhone) or the request is refused, the field still fills
+// the window.
+function toggleFullscreen() {
+  if (view.fullscreen) {
+    setFullscreenView(false);
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (getFullscreenElement() && exit) exit.call(document);
+    return;
+  }
+  setFullscreenView(true);
+  const root = document.documentElement;
+  const request = root.requestFullscreen || root.webkitRequestFullscreen;
+  if (!request) return;
+  const result = request.call(root);
+  if (result && typeof result.catch === "function") result.catch(() => {});
+}
+
+// Esc leaves the browser's full screen without going through the button.
+function handleFullscreenChange() {
+  if (!getFullscreenElement()) setFullscreenView(false);
+}
+
+function handleShortcut(event) {
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+  const target = event.target;
+  if (
+    target instanceof Element &&
+    target.matches('input[type="number"], select, textarea')
+  ) {
+    return;
+  }
+  if (event.code === "KeyF") {
+    toggleFullscreen();
+  } else if (event.code === "KeyM") {
+    toggleSound();
+  } else if (event.code === "Escape" && view.fullscreen) {
+    toggleFullscreen();
+  }
+}
+
+function clampToInput(value, input) {
+  return Math.max(Number(input.min), Math.min(Number(input.max), value));
+}
+
+// The field shape of the display the page is on, at the preset cell budget.
+function getScreenGrid() {
+  const colsInput = document.getElementById("colsRange");
+  const rowsInput = document.getElementById("rowsRange");
+  const ratio = window.screen.width / window.screen.height || 16 / 9;
+  // Rows first, then again from the clamped width: a very wide or very tall
+  // display runs into a slider limit, and the ratio matters more than the budget.
+  const rows = clampToInput(Math.round(Math.sqrt(PRESET_CELL_BUDGET / ratio)), rowsInput);
+  const cols = clampToInput(Math.round(rows * ratio), colsInput);
+  return { cols, rows: clampToInput(Math.round(cols / ratio), rowsInput) };
+}
+
+const presetList = document.getElementById("ratioPresets");
+
+function updatePresetButtons() {
+  if (!presetList) return;
+  presetList.querySelectorAll("button").forEach((button) => {
+    const active =
+      Number(button.dataset.cols) === settings.cols &&
+      Number(button.dataset.rows) === settings.rows;
+    button.setAttribute("aria-pressed", String(active));
+  });
+}
+
+function renderPresetButtons(applyPreset) {
+  if (!presetList) return;
+  const presets = [{ label: "This screen", ...getScreenGrid() }, ...RATIO_PRESETS];
+  presets.forEach((preset) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "ghost-button";
+    button.textContent = preset.label;
+    button.title = `${preset.cols} \u00d7 ${preset.rows} cells`;
+    button.dataset.cols = preset.cols;
+    button.dataset.rows = preset.rows;
+    button.addEventListener("click", () => applyPreset(preset));
+    presetList.appendChild(button);
+  });
+  updatePresetButtons();
 }
 
 function resetGrid() {
@@ -360,24 +532,24 @@ function drawBackground() {
 }
 
 function drawGrid() {
-  const fieldWidth = settings.cols * settings.cellSize;
-  const fieldHeight = settings.rows * settings.cellSize;
-  const { offsetX, offsetY } = getFieldOrigin();
+  const { xEdges, yEdges } = view;
+  const left = xEdges[0];
+  const right = xEdges[settings.cols];
+  const top = yEdges[0];
+  const bottom = yEdges[settings.rows];
 
   ctx.strokeStyle = settings.gridColor;
-  ctx.lineWidth = settings.gridThickness;
+  ctx.lineWidth = settings.gridThickness * view.scale;
   ctx.beginPath();
 
   for (let x = 0; x <= settings.cols; x += 1) {
-    const px = offsetX + x * settings.cellSize;
-    ctx.moveTo(px, offsetY);
-    ctx.lineTo(px, offsetY + fieldHeight);
+    ctx.moveTo(xEdges[x], top);
+    ctx.lineTo(xEdges[x], bottom);
   }
 
   for (let y = 0; y <= settings.rows; y += 1) {
-    const py = offsetY + y * settings.cellSize;
-    ctx.moveTo(offsetX, py);
-    ctx.lineTo(offsetX + fieldWidth, py);
+    ctx.moveTo(left, yEdges[y]);
+    ctx.lineTo(right, yEdges[y]);
   }
 
   ctx.stroke();
@@ -393,24 +565,27 @@ function getCellColor(age) {
   return settings.alive1Color;
 }
 
-function drawCells() {
-  const { offsetX, offsetY } = getFieldOrigin();
+function fillAliveCells(target) {
+  const { xEdges, yEdges } = view;
 
   for (let y = 0; y < settings.rows; y += 1) {
     const rowOffset = y * settings.cols;
     for (let x = 0; x < settings.cols; x += 1) {
       const idx = rowOffset + x;
       if (cells[idx] !== 1) continue;
-      const age = ages[idx];
-      ctx.fillStyle = getCellColor(age);
-      ctx.fillRect(
-        offsetX + x * settings.cellSize,
-        offsetY + y * settings.cellSize,
-        settings.cellSize,
-        settings.cellSize
+      target.fillStyle = getCellColor(ages[idx]);
+      target.fillRect(
+        xEdges[x],
+        yEdges[y],
+        xEdges[x + 1] - xEdges[x],
+        yEdges[y + 1] - yEdges[y]
       );
     }
   }
+}
+
+function drawCells() {
+  fillAliveCells(ctx);
 }
 
 function drawGlowOverlay() {
@@ -418,29 +593,13 @@ function drawGlowOverlay() {
   glowCtx.globalCompositeOperation = "source-over";
   glowCtx.save();
   glowCtx.globalAlpha = 0.9;
-
-  const { offsetX, offsetY } = getFieldOrigin();
-  for (let y = 0; y < settings.rows; y += 1) {
-    const rowOffset = y * settings.cols;
-    for (let x = 0; x < settings.cols; x += 1) {
-      const idx = rowOffset + x;
-      if (cells[idx] !== 1) continue;
-      const age = ages[idx];
-      glowCtx.fillStyle = getCellColor(age);
-      glowCtx.fillRect(
-        offsetX + x * settings.cellSize,
-        offsetY + y * settings.cellSize,
-        settings.cellSize,
-        settings.cellSize
-      );
-    }
-  }
+  fillAliveCells(glowCtx);
   glowCtx.restore();
 
   ctx.save();
   ctx.globalCompositeOperation = glowConfig.blendMode;
   ctx.globalAlpha = glowConfig.alpha;
-  ctx.filter = `blur(${glowConfig.blur}px)`;
+  ctx.filter = `blur(${glowConfig.blur * view.scale}px)`;
   ctx.drawImage(glowCanvas, 0, 0);
   ctx.restore();
 }
@@ -470,7 +629,7 @@ function drawRegionBands(left, top) {
 function drawPitchRuler() {
   if (typeof SoundMapping === "undefined" || !SoundMapping.getPitchMarkers) return;
 
-  const { offsetX, offsetY } = getFieldOrigin();
+  const { offsetX, offsetY } = view;
   const fieldHeight = settings.rows * settings.cellSize;
   const bandLeft = offsetX - 4 - rulerConfig.bandWidth;
   const axisX = Math.round(bandLeft - 6) + 0.5;
@@ -547,11 +706,10 @@ function drawPitchRuler() {
 function getCellFromPointer(event) {
   const rect = canvas.getBoundingClientRect();
   if (!rect.width || !rect.height) return null;
-  const { offsetX, offsetY } = getFieldOrigin();
   const canvasX = (event.clientX - rect.left) * (canvas.width / rect.width);
   const canvasY = (event.clientY - rect.top) * (canvas.height / rect.height);
-  const x = Math.floor((canvasX - offsetX) / settings.cellSize);
-  const y = Math.floor((canvasY - offsetY) / settings.cellSize);
+  const x = Math.floor((canvasX - view.offsetX) / view.cellSize);
+  const y = Math.floor((canvasY - view.offsetY) / view.cellSize);
   if (x < 0 || x >= settings.cols || y < 0 || y >= settings.rows) return null;
   return { x, y };
 }
@@ -581,7 +739,8 @@ function render() {
   drawGrid();
   drawCells();
   drawGlowOverlay();
-  drawPitchRuler();
+  // The ruler is a tuning aid; full screen shows the field alone.
+  if (!view.fullscreen) drawPitchRuler();
 }
 
 function tick(timestamp) {
@@ -604,24 +763,51 @@ function tick(timestamp) {
   requestAnimationFrame(tick);
 }
 
+// Full screen pads a field of another ratio with the field's own background.
+function applyStageBackground() {
+  stage.style.setProperty("--field-bg", settings.bgColor);
+}
+
 function applySettings() {
   resizeCanvases();
   resetGrid();
-  needsRender = true;
 }
 
 function bindControls() {
   canvas.addEventListener("pointerdown", handleFieldPointerDown);
   const resetRegions = document.getElementById("soundResetRegions");
   if (resetRegions) resetRegions.addEventListener("click", resetRegionsToCycle);
-  bindPair("colsRange", "colsNumber", settings.cols, (value) => {
+  soundButtons.forEach((button) => button.addEventListener("click", toggleSound));
+  document.querySelectorAll('[data-action="toggle-fullscreen"]').forEach((button) => {
+    button.addEventListener("click", toggleFullscreen);
+  });
+  ["fullscreenchange", "webkitfullscreenchange"].forEach((type) => {
+    document.addEventListener(type, handleFullscreenChange);
+  });
+  ["pointermove", "pointerdown", "keydown"].forEach((type) => {
+    document.addEventListener(type, wakeStage);
+  });
+  document.addEventListener("keydown", handleShortcut);
+  // The display is only known to have settled once the stage has its new size.
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(() => {
+      if (view.fullscreen) resizeCanvases();
+    }).observe(stage);
+  }
+  const setCols = bindPair("colsRange", "colsNumber", settings.cols, (value) => {
     settings.cols = Math.max(10, value);
     applySettings();
+    updatePresetButtons();
   });
-  bindPair("rowsRange", "rowsNumber", settings.rows, (value) => {
+  const setRows = bindPair("rowsRange", "rowsNumber", settings.rows, (value) => {
     settings.rows = Math.max(10, value);
     applySettings();
     updateRegionRanges();
+    updatePresetButtons();
+  });
+  renderPresetButtons((preset) => {
+    setCols(preset.cols);
+    setRows(preset.rows);
   });
   bindSelect("horizontalEdges", settings.wrapHorizontal ? "wrap" : "wall", (value) => {
     settings.wrapHorizontal = value === "wrap";
@@ -676,6 +862,7 @@ function bindControls() {
   });
   bindColor("bgColor", settings.bgColor, (value) => {
     settings.bgColor = value;
+    applyStageBackground();
   });
   bindColor("gridColor", settings.gridColor, (value) => {
     settings.gridColor = value;
@@ -695,12 +882,8 @@ function start() {
   resetRegionsToCycle();
   bindControls();
   applySettings();
-  if (canUseSound()) {
-    listenForSoundGesture(true);
-    setSoundHint("Click anywhere to start sound", false);
-  } else {
-    setSoundHint("Sound unavailable: Tone.js failed to load", false);
-  }
+  applyStageBackground();
+  updateSoundButtons();
   requestAnimationFrame(tick);
 }
 

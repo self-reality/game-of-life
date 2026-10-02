@@ -8,6 +8,29 @@ The simulation can be precomputed so later renders can process cycles in chunks,
 addressing a desired cycle range without re-running the simulation. The export
 format is compact and optimized for random access.
 
+## Full screen, screen ratio and sound
+
+The browser page is meant to be tuned in the window and then left running on a
+display.
+
+- **Full screen** (button or `F`) shows the field alone: no panel, no pitch
+  ruler, no margin. The field is fitted to the display, so a field of the same
+  ratio covers it edge to edge and any other ratio gets bars in the background
+  colour. Glow blur and grid thickness scale with the cells, so the picture
+  keeps the look it had in the window. The pointer and the two buttons in the
+  corner hide after a couple of seconds of rest; `Esc` or `F` leaves. Entering
+  and leaving does not restart the simulation.
+- **Screen ratio** presets set the field width and height in cells for a monitor
+  shape: 16:9, 16:10, 21:9, 32:9, 4:3, or "This screen", which reads the ratio
+  of the display the page is on. They only change the shape: every preset holds
+  about 32,000 cells, the same as the default field, so a wider monitor gets
+  bigger cells along one side, not more of them. Edit `RATIO_PRESETS` in
+  `script.js` to change the list. Picking one restarts the simulation, like
+  moving the width and height sliders by hand.
+- **Sound** (button or `M`) is off until switched on, and the same button
+  switches it off again. Turning it off stops new notes; the ones already
+  ringing fade out on their own release.
+
 ## Field topology
 
 The left and right edges are stitched together, so the field is a cylinder: a
