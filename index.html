@@ -192,46 +192,52 @@
             </div>
           </div>
         </details>
-        <!-- English only: these are the terms synths use everywhere. -->
-        <details class="panel-section panel-fold" lang="en" dir="ltr">
-          <summary><h2>Sound</h2></summary>
+        <details class="panel-section panel-fold">
+          <summary><h2 data-i18n="sound">Sound</h2></summary>
           <div class="control">
-            <label for="soundRegionCountRange">Voice regions</label>
+            <label for="soundRegionCountRange" data-i18n="voiceRegions">Voice regions</label>
             <div class="control-row">
               <input id="soundRegionCountRange" type="range" min="1" max="8" step="1" value="4" />
               <input id="soundRegionCountNumber" type="number" min="1" max="8" step="1" value="4" />
             </div>
           </div>
           <div class="control">
-            <label for="soundOctavesRange">Octaves across height</label>
+            <label for="soundOctavesRange" data-i18n="octavesAcrossHeight">Octaves across height</label>
             <div class="control-row">
               <input id="soundOctavesRange" type="range" min="1" max="12" step="1" value="4" />
               <input id="soundOctavesNumber" type="number" min="1" max="12" step="1" value="4" />
             </div>
           </div>
           <div class="control">
-            <label for="soundCenterOctaveRange">Center octave</label>
+            <label for="soundCenterOctaveRange" data-i18n="centerOctave">Center octave</label>
             <div class="control-row">
               <input id="soundCenterOctaveRange" type="range" min="-2" max="10" step="1" value="0" />
               <input id="soundCenterOctaveNumber" type="number" min="-2" max="10" step="1" value="0" />
             </div>
           </div>
           <div class="control">
-            <label for="soundStartRandomRange">Note start randomization (ms)</label>
+            <label for="soundStartRandomRange" data-i18n="noteStartRandom">Note start randomization (ms)</label>
             <div class="control-row">
               <input id="soundStartRandomRange" type="range" min="0" max="100" step="1" value="6" />
               <input id="soundStartRandomNumber" type="number" min="0" max="100" step="1" value="6" />
             </div>
           </div>
-          <div class="control">
-            <div class="control-head">
-              <label>Region voices</label>
-              <button id="soundResetRegions" type="button" class="ghost-button">
+          <details class="control panel-fold region-fold">
+            <summary><span data-i18n="regionVoices">Region voices</span></summary>
+            <div class="region-actions">
+              <button
+                id="soundResetRegions"
+                type="button"
+                class="ghost-button"
+                data-i18n="resetToCycle"
+              >
                 Reset to cycle
               </button>
             </div>
-            <div id="soundRegions" class="region-list"></div>
-          </div>
+            <!-- The envelope names stay English: they are the terms synths
+                 use everywhere. -->
+            <div id="soundRegions" class="region-list" lang="en" dir="ltr"></div>
+          </details>
         </details>
         <section class="panel-section">
           <h2 data-i18n="status">Status</h2>

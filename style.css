@@ -213,11 +213,24 @@ body {
   flex: 1;
 }
 
-.control-head {
+/* The region cards fold away under their own caret inside the Sound section. */
+.region-fold > summary {
+  font-size: 12px;
+  color: #c7c7c7;
+}
+
+.region-fold > summary:hover {
+  color: #f0f0f0;
+}
+
+.region-fold[open] > summary {
+  margin-bottom: 8px;
+}
+
+.region-actions {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: flex-end;
+  margin-bottom: 8px;
 }
 
 .ghost-button {
@@ -353,7 +366,9 @@ body {
 }
 
 .region-head select {
-  width: 96px;
+  width: auto;
+  min-width: 96px;
+  max-width: 140px;
   flex: 0 0 auto;
 }
 

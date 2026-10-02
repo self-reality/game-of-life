@@ -346,7 +346,9 @@ function createRegionCard(index) {
   SoundMapping.WAVEFORMS.forEach((type) => {
     const option = document.createElement("option");
     option.value = type;
-    option.textContent = type;
+    // Tagged as well as filled in, so a language switch relabels it in place.
+    option.dataset.i18n = `wave${type[0].toUpperCase()}${type.slice(1)}`;
+    option.textContent = I18n.t(option.dataset.i18n);
     wave.appendChild(option);
   });
   wave.value = settings.sound.regions[index].waveform;

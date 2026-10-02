@@ -46,9 +46,10 @@ place, so control ids and values do not depend on the language. To add a
 language, add it to `LANGUAGES` and `STRINGS` there and put its flag in
 `flags/`. A key missing from a table falls back to English.
 
-The Sound section is English only on purpose: attack, decay, sustain and the
-waveform names are the terms synths use everywhere. The glow blend modes are
-left as the canvas names for the same reason.
+The envelope rows of the region cards (Attack ms, Decay ms, Sustain, Release ms,
+Delay ms, Volume dB, Voices) are English in every language on purpose: those
+are the terms synths use everywhere. The glow blend modes are left as the
+canvas names for the same reason.
 
 The flags come from [flag-icons](https://github.com/lipis/flag-icons) (MIT, see
 `flags/LICENSE`), except Spain's, which is a plain striped version: the original
