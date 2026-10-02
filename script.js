@@ -79,7 +79,7 @@ const view = {
 // A 4K or retina display is rendered at no more than this many canvas pixels
 // per CSS pixel: the glow blur costs per pixel.
 const FULLSCREEN_MAX_DPR = 2;
-// How long the pointer rests in full screen before it and the buttons hide.
+// How long the pointer rests in full screen before it hides.
 const STAGE_IDLE_MS = 2500;
 
 // Monitor shapes. Every preset holds about as many cells as the default field:
@@ -397,8 +397,7 @@ function getFullscreenElement() {
 
 let stageIdleTimer = 0;
 
-// Shows the pointer and the full-screen buttons, then hides them again once
-// the pointer has rested.
+// Shows the pointer, then hides it again once it has rested.
 function wakeStage() {
   document.body.classList.remove("is-idle");
   clearTimeout(stageIdleTimer);

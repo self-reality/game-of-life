@@ -317,31 +317,42 @@ body.is-fullscreen #lifeCanvas {
   border-radius: 0;
 }
 
-.stage-bar {
+/* Shown once on the way into full screen, then gone: nothing else is drawn
+   over the field. The animation restarts each time the body class returns. */
+.stage-hint {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: none;
-  gap: 8px;
-  transition: opacity 0.4s ease;
-}
-
-.stage-bar .ghost-button {
-  padding: 6px 12px;
-  font-size: 12px;
+  margin: 0;
+  padding: 10px 18px;
+  border: 1px solid #2a2a2a;
+  border-radius: 999px;
   background: rgba(13, 13, 13, 0.85);
-}
-
-body.is-fullscreen .stage-bar {
-  display: flex;
-}
-
-/* The pointer and the buttons go away once the pointer rests. */
-body.is-idle .stage-bar:not(:focus-within) {
-  opacity: 0;
+  color: #e6e6e6;
+  font-size: 14px;
+  white-space: nowrap;
   pointer-events: none;
+  opacity: 0;
 }
 
+body.is-fullscreen .stage-hint {
+  display: block;
+  animation: stage-hint-fade 3.5s ease forwards;
+}
+
+@keyframes stage-hint-fade {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The pointer goes away once it rests. */
 body.is-idle .canvas-wrap,
 body.is-idle #lifeCanvas {
   cursor: none;

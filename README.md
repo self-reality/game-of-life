@@ -17,9 +17,10 @@ display.
   ruler, no margin. The field is fitted to the display, so a field of the same
   ratio covers it edge to edge and any other ratio gets bars in the background
   colour. Glow blur and grid thickness scale with the cells, so the picture
-  keeps the look it had in the window. The pointer and the two buttons in the
-  corner hide after a couple of seconds of rest; `Esc` or `F` leaves. Entering
-  and leaving does not restart the simulation.
+  keeps the look it had in the window. Nothing is drawn over the field: a
+  message in the centre says that `Esc` leaves and fades out, and the pointer
+  hides after a couple of seconds of rest. `F` leaves too, and `M` still
+  switches the sound. Entering and leaving does not restart the simulation.
 - **Screen ratio** presets set the field width and height in cells for a monitor
   shape: 16:9, 16:10, 21:9, 32:9, 4:3, or "This screen", which reads the ratio
   of the display the page is on. They only change the shape: every preset holds
