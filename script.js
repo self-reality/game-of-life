@@ -224,16 +224,21 @@ function bindSelect(id, initial, onChange) {
   });
 }
 
-// Each voice region gets its own row of controls. Waveform sits in the card
-// header; the rest is a compact grid of numbers, since eight sliders per region
-// would not fit the panel.
+// Each voice region gets its own card. Waveform sits in the card header; every
+// other setting is a slider with the exact number beside it.
+//
+// Times run from a few milliseconds to seconds while the useful values sit at
+// the low end, so their sliders are cubic: half the travel covers the first
+// eighth of the range.
+const TIME_SLIDER_CURVE = 3;
+const SLIDER_STEPS = 1000;
 const REGION_FIELDS = [
-  { key: "attackMs", label: "A ms", min: 0, max: 2000, step: 1 },
-  { key: "decayMs", label: "D ms", min: 0, max: 4000, step: 1 },
-  { key: "sustain", label: "S", min: 0, max: 1, step: 0.01 },
-  { key: "releaseMs", label: "R ms", min: 0, max: 4000, step: 1 },
-  { key: "delayMs", label: "Delay", min: 0, max: 2000, step: 1 },
-  { key: "volumeDb", label: "Vol dB", min: -60, max: 6, step: 0.5 },
+  { key: "attackMs", label: "Attack ms", min: 0, max: 2000, step: 1, curve: TIME_SLIDER_CURVE },
+  { key: "decayMs", label: "Decay ms", min: 0, max: 4000, step: 1, curve: TIME_SLIDER_CURVE },
+  { key: "sustain", label: "Sustain", min: 0, max: 1, step: 0.01 },
+  { key: "releaseMs", label: "Release ms", min: 0, max: 4000, step: 1, curve: TIME_SLIDER_CURVE },
+  { key: "delayMs", label: "Delay ms", min: 0, max: 2000, step: 1, curve: TIME_SLIDER_CURVE },
+  { key: "volumeDb", label: "Volume dB", min: -60, max: 6, step: 0.5 },
   { key: "maxVoices", label: "Voices", min: 1, max: 24, step: 1 },
 ];
 
@@ -267,25 +272,60 @@ function updateRegionRanges() {
 }
 
 function createRegionField(index, field) {
-  const label = document.createElement("label");
-  label.className = "region-field";
-  label.append(field.label);
+  const row = document.createElement("div");
+  row.className = "region-field";
 
-  const input = document.createElement("input");
-  input.type = "number";
-  input.min = field.min;
-  input.max = field.max;
-  input.step = field.step;
-  input.value = settings.sound.regions[index][field.key];
-  input.addEventListener("input", () => {
-    const value = Number(input.value);
-    if (input.value === "" || !Number.isFinite(value)) return;
+  const name = document.createElement("span");
+  name.textContent = field.label;
+
+  const curve = field.curve || 1;
+  const span = field.max - field.min;
+  const decimals = (String(field.step).split(".")[1] || "").length;
+  const toSlider = (value) => {
+    const t = Math.max(0, Math.min(1, (value - field.min) / span));
+    return Math.round(SLIDER_STEPS * Math.pow(t, 1 / curve));
+  };
+  const fromSlider = (position) => {
+    const raw = field.min + span * Math.pow(position / SLIDER_STEPS, curve);
+    return Number((Math.round(raw / field.step) * field.step).toFixed(decimals));
+  };
+  const commit = (value) => {
     settings.sound.regions[index][field.key] = value;
     applyRegionSettings();
+  };
+
+  const range = document.createElement("input");
+  range.type = "range";
+  range.min = 0;
+  range.max = SLIDER_STEPS;
+  range.step = 1;
+  range.setAttribute("aria-label", field.label);
+
+  const number = document.createElement("input");
+  number.type = "number";
+  number.min = field.min;
+  number.max = field.max;
+  number.step = field.step;
+  number.setAttribute("aria-label", field.label);
+
+  const initial = settings.sound.regions[index][field.key];
+  range.value = toSlider(initial);
+  number.value = initial;
+
+  range.addEventListener("input", () => {
+    const value = fromSlider(Number(range.value));
+    number.value = value;
+    commit(value);
+  });
+  number.addEventListener("input", () => {
+    const value = Number(number.value);
+    if (number.value === "" || !Number.isFinite(value)) return;
+    range.value = toSlider(value);
+    commit(value);
   });
 
-  label.appendChild(input);
-  return label;
+  row.append(name, range, number);
+  return row;
 }
 
 function createRegionCard(index) {
